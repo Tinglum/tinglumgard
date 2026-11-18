@@ -28,6 +28,8 @@ import {
   normalizeExtraQuantity,
 } from '@/lib/extras/fixedQuantities';
 import type { Extra } from '@/lib/types';
+import { pigDeliveries, type PigDelivery } from '@/lib/pig-campaign';
+import { rememberPigOffer, rememberPigPickup } from '@/lib/pig-offer-client';
 
 /* ── Category inference for extras filter chips ── */
 const EXTRAS_FILTER_CHIPS = [
@@ -97,7 +99,18 @@ function MetaLabel({ children }: { children: React.ReactNode }) {
 export default function CheckoutPage() {
   const { t, lang } = useLanguage();
   const locale = lang === 'no' ? 'nb-NO' : 'en-US';
-  const searchParams = useSearchParams();
+  const incomingSearchParams = useSearchParams();
+  const [rememberedOffer, setRememberedOffer] = useState('');
+  const searchParams = useMemo(() => {
+    const params = new URLSearchParams(rememberedOffer);
+    if (incomingSearchParams.has('ref')) params.delete('rebate');
+    if (incomingSearchParams.has('rebate')) params.delete('ref');
+    incomingSearchParams.forEach((value,key) => params.set(key,value));
+    return params;
+  }, [incomingSearchParams,rememberedOffer]);
+  useEffect(() => {
+    setRememberedOffer(rememberPigOffer(incomingSearchParams.toString()).toString());
+  }, [incomingSearchParams]);
   usePageTrack('pig_checkout_start', '/bestill');
   const isMobile = useIsMobile();
   const { toast } = useToast();
@@ -116,7 +129,11 @@ export default function CheckoutPage() {
   const [availableExtras, setAvailableExtras] = useState<Extra[]>([]);
   const [infoModalExtra, setInfoModalExtra] = useState<Extra | null>(null);
   const [recipeModalTarget, setRecipeModalTarget] = useState<{ slug: string; title: string } | null>(null);
-  const [deliveryType, setDeliveryType] = useState<'farm' | 'trondheim' | 'e6'>('farm');
+  const [deliveryType, setDeliveryType] = useState<PigDelivery>('farm');
+  const chooseDeliveryType = (choice: PigDelivery) => {
+    setDeliveryType(choice);
+    rememberPigPickup(choice);
+  };
   const [freshDelivery, setFreshDelivery] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [agreedToDepositPolicy, setAgreedToDepositPolicy] = useState(false);
@@ -404,6 +421,8 @@ export default function CheckoutPage() {
 
   // URL discount/referral prefill
   useEffect(() => {
+    const requestedPickup = searchParams.get('pickup');
+    if (requestedPickup && Object.hasOwn(pigDeliveries,requestedPickup)) setDeliveryType(requestedPickup as PigDelivery);
     const incomingReferralCode =
       searchParams.get('ref') ||
       searchParams.get('referral') ||
@@ -892,11 +911,14 @@ export default function CheckoutPage() {
     setIsProcessing(true);
 
     try {
-      let apiDeliveryType: 'pickup_farm' | 'pickup_e6' | 'delivery_trondheim' = 'pickup_farm';
+      if (searchParams.get('rebate') && !rebateData && !referralData) throw new Error(lang === 'no' ? 'Kunderabatten er ikke klar. Vent litt og prøv igjen før du betaler.' : 'Your customer discount is not ready. Wait and try again before paying.');
+      let apiDeliveryType: 'pickup_farm' | 'pickup_e6' | 'delivery_trondheim' | 'pickup_oslo' = 'pickup_farm';
       if (deliveryType === 'e6') {
         apiDeliveryType = 'pickup_e6';
       } else if (deliveryType === 'trondheim') {
         apiDeliveryType = 'delivery_trondheim';
+      } else if (deliveryType === 'oslo') {
+        apiDeliveryType = 'pickup_oslo';
       }
 
       // Build extras array with quantities
@@ -976,7 +998,8 @@ export default function CheckoutPage() {
   } : null;
 
   const selectedPrice = mangalitsaPriceObj;
-  const deliveryPrice = !addonPrices ? 0 : (deliveryType === 'farm' ? 0 : deliveryType === 'trondheim' ? addonPrices.trondheim : addonPrices.e6);
+  const deliveryPrice = !addonPrices ? 0 : (deliveryType === 'farm' ? 0 : deliveryType === 'e6' ? addonPrices.e6 : addonPrices.trondheim);
+  useEffect(()=>{if(deliveryType !== 'farm') setFreshDelivery(false)},[deliveryType]);
   const freshPrice = freshDelivery && addonPrices ? addonPrices.fresh : 0;
 
   // Calculate extras total
@@ -993,14 +1016,38 @@ export default function CheckoutPage() {
   const baseDepositTotal = selectedPrice ? selectedPrice.deposit : 0;
 
   // Apply discount (referral OR rebate - cannot stack)
-  const referralDiscount = referralData?.discountAmount || 0;
+  const referralDiscount = referralData ? Math.round(baseDepositTotal * referralData.discountPercentage / 100) : 0;
   const rebateDiscount = rebateData?.discountAmount || 0;
   const totalDiscount = referralDiscount || rebateDiscount; // Only one applies
+  const presetDiscount = (price: number) => baseDepositTotal ? Math.round(Math.floor(price * .5) * totalDiscount / baseDepositTotal) : 0;
 
   const depositTotal = baseDepositTotal - totalDiscount;
   // Remainder includes the other 50% of box price PLUS all extras
   const remainderTotal = selectedPrice ? selectedPrice.remainder + addonTotal : 0;
   const totalPrice = depositTotal + remainderTotal;
+
+  useEffect(() => {
+    const incomingCode = searchParams.get('rebate')?.trim().toUpperCase();
+    if (!incomingCode || !mangalitsaPreset || !baseDepositTotal || referralData) return;
+    const code = incomingCode;
+    const preset = mangalitsaPreset;
+    const controller = new AbortController();
+    setRebateData(null);
+    async function applyOffer() {
+      try {
+        const response = await fetch('/api/rebate-codes/validate', {
+          method:'POST',headers:{'Content-Type':'application/json'},signal:controller.signal,
+          body:JSON.stringify({code,boxSize:preset.target_weight_kg,presetSlug:preset.slug,depositAmount:baseDepositTotal}),
+        });
+        const result = await response.json();
+        if (controller.signal.aborted) return;
+        if (!response.ok || !result.valid) throw new Error(result.error || 'Rabatten kunne ikke aktiveres');
+        setRebateData({code,discountAmount:Number(result.discount_amount),description:String(result.description || 'Kunderabatt')});
+      } catch(error) { if (!controller.signal.aborted) console.error('Campaign discount validation failed',error); }
+    }
+    void applyOffer();
+    return () => controller.abort();
+  },[searchParams,mangalitsaPreset,baseDepositTotal,referralData]);
 
   const canProceedToStep2 = !!mangalitsaPreset;
   const canProceedToStep3 = ribbeChoice !== '';
@@ -1192,7 +1239,7 @@ export default function CheckoutPage() {
             setExtraQuantities={setExtraQuantities}
             availableExtras={availableExtras}
             deliveryType={deliveryType}
-            setDeliveryType={setDeliveryType}
+            setDeliveryType={chooseDeliveryType}
             freshDelivery={freshDelivery}
             setFreshDelivery={setFreshDelivery}
             agreedToTerms={agreedToTerms}
@@ -1265,8 +1312,8 @@ export default function CheckoutPage() {
             </div>
           )}
 
-          <div className="farm-checkout-assurances"><span><Check size={14} />{lang === 'no' ? '50 % ved bestilling' : '50% when ordering'}</span><span>{lang === 'no' ? 'Resten før levering' : 'Balance before delivery'}</span><span>Vipps</span></div>
-          {mangalitsaPreset && <div className="farm-selection-receipt"><span><strong>{fixMojibake(lang === 'no' ? mangalitsaPreset.name_no : mangalitsaPreset.name_en)}</strong><small>{mangalitsaPreset.target_weight_kg} kg · {mangalitsaPreset.price_nok.toLocaleString(locale)} kr</small></span><button type="button" onClick={() => setStep(1)}>{t.common.edit}</button></div>}
+          <div className="farm-checkout-assurances"><span><Check size={14} />{totalDiscount ? (lang === 'no' ? 'Kunderabatt trukket fra forskuddet' : 'Customer discount deducted from deposit') : (lang === 'no' ? '50 % ved bestilling' : '50% when ordering')}</span><span>{lang === 'no' ? 'Resten før levering' : 'Balance before delivery'}</span><span>Vipps</span></div>
+          {mangalitsaPreset && <div className="farm-selection-receipt"><span><strong>{fixMojibake(lang === 'no' ? mangalitsaPreset.name_no : mangalitsaPreset.name_en)}</strong><small>{mangalitsaPreset.target_weight_kg} kg · {totalDiscount ? <><del>{mangalitsaPreset.price_nok.toLocaleString(locale)} kr</del> <strong style={{color: '#b53e2d'}}>{(mangalitsaPreset.price_nok - totalDiscount).toLocaleString(locale)} kr</strong></> : <>{mangalitsaPreset.price_nok.toLocaleString(locale)} kr</>}</small></span><button type="button" onClick={() => setStep(1)}>{t.common.edit}</button></div>}
         </div>
 
         <FarmJourney current={Math.min(step, 4) - 1} steps={[t.checkout.stepSize, t.checkout.stepRibbe, t.checkout.stepExtras, lang === 'no' ? 'Levering og betaling' : 'Delivery and payment'].map(label => ({ label }))} onStepChange={index => setStep(index + 1)} />
@@ -1363,12 +1410,12 @@ export default function CheckoutPage() {
                         </div>
 
                         <div className="pt-4 border-t border-neutral-200 text-xs font-light text-neutral-500">
-                          {preset.price_nok.toLocaleString(locale)} kr
+                          {totalDiscount ? <><del>{preset.price_nok.toLocaleString(locale)} kr</del> <strong style={{color:'#b53e2d'}}>{(preset.price_nok - presetDiscount(preset.price_nok)).toLocaleString(locale)} kr</strong></> : <>{preset.price_nok.toLocaleString(locale)} kr</>}
                           <span className="mx-2">•</span>
                           {t.common.approx} {preset.target_weight_kg} kg
                         </div>
                         <div className="text-xs font-light text-neutral-600">
-                          {Math.floor(preset.price_nok * 0.5).toLocaleString(locale)} {t.common.currency} {t.checkout.pricingSplit.now}
+                          {(Math.floor(preset.price_nok * 0.5) - (totalDiscount ? presetDiscount(preset.price_nok) : 0)).toLocaleString(locale)} {t.common.currency} {t.checkout.pricingSplit.now}
                           <span className="mx-1">+</span>
                           {(preset.price_nok - Math.floor(preset.price_nok * 0.5)).toLocaleString(locale)} {t.common.currency} {t.checkout.pricingSplit.atDelivery}
                           <span
@@ -1658,87 +1705,7 @@ export default function CheckoutPage() {
                   <div>
                     <MetaLabel>{t.checkout.deliveryOptions}</MetaLabel>
                     <div className="space-y-4 mt-4">
-                      <button
-                        onClick={() => setDeliveryType('farm')}
-                        className={cn(
-                          "w-full p-6 text-left border-2 rounded-xl transition-all duration-300 group",
-                          deliveryType === 'farm'
-                            ? "border-neutral-900 bg-neutral-50 shadow-[0_15px_40px_-12px_rgba(0,0,0,0.15)]"
-                            : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"
-                        )}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            <div className={cn(
-                              "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-300",
-                              deliveryType === 'farm' ? "border-neutral-900 bg-neutral-900 shadow-[0_5px_15px_-5px_rgba(0,0,0,0.3)]" : "border-neutral-200"
-                            )}>
-                              {deliveryType === 'farm' && <div className="w-2 h-2 rounded-full bg-white" />}
-                            </div>
-                            <div>
-                              <p className="font-normal text-neutral-900">{t.checkout.pickupFarm}</p>
-                              <p className="text-sm font-light text-neutral-600 mt-1">{t.checkout.pickupFarmAddress}</p>
-                            </div>
-                          </div>
-                          <span className="text-sm font-light text-neutral-900">{t.common.free}</span>
-                        </div>
-                      </button>
-
-                      <button
-                        onClick={() => setDeliveryType('trondheim')}
-                        className={cn(
-                          "w-full p-6 text-left border-2 rounded-xl transition-all duration-300 group",
-                          deliveryType === 'trondheim'
-                            ? "border-neutral-900 bg-neutral-50 shadow-[0_15px_40px_-12px_rgba(0,0,0,0.15)]"
-                            : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"
-                        )}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            <div className={cn(
-                              "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-300",
-                              deliveryType === 'trondheim' ? "border-neutral-900 bg-neutral-900 shadow-[0_5px_15px_-5px_rgba(0,0,0,0.3)]" : "border-neutral-200"
-                            )}>
-                              {deliveryType === 'trondheim' && <div className="w-2 h-2 rounded-full bg-white" />}
-                            </div>
-                            <div>
-                              <p className="font-normal text-neutral-900">{t.checkout.pickupTrondheim}</p>
-                              <p className="text-sm font-light text-neutral-600 mt-1">{t.checkout.pickupTrondheimAddress}</p>
-                            </div>
-                          </div>
-                          <span className="text-sm font-light text-neutral-900 tabular-nums">
-                            +{addonPrices?.trondheim || 200} kr
-                          </span>
-                        </div>
-                      </button>
-
-                      <button
-                        onClick={() => setDeliveryType('e6')}
-                        className={cn(
-                          "w-full p-6 text-left border-2 rounded-xl transition-all duration-300 group",
-                          deliveryType === 'e6'
-                            ? "border-neutral-900 bg-neutral-50 shadow-[0_15px_40px_-12px_rgba(0,0,0,0.15)]"
-                            : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"
-                        )}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            <div className={cn(
-                              "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-300",
-                              deliveryType === 'e6' ? "border-neutral-900 bg-neutral-900 shadow-[0_5px_15px_-5px_rgba(0,0,0,0.3)]" : "border-neutral-200"
-                            )}>
-                              {deliveryType === 'e6' && <div className="w-2 h-2 rounded-full bg-white" />}
-                            </div>
-                            <div>
-                              <p className="font-normal text-neutral-900">{t.checkout.deliveryE6}</p>
-                              <p className="text-sm font-light text-neutral-600 mt-1">{t.checkout.deliveryE6Address}</p>
-                            </div>
-                          </div>
-                          <span className="text-sm font-light text-neutral-900 tabular-nums">
-                            +{addonPrices?.e6 || 300} kr
-                          </span>
-                        </div>
-                      </button>
+                      {Object.entries(pigDeliveries).map(([key,option])=><button key={key} type='button' aria-pressed={deliveryType===key} onClick={()=>chooseDeliveryType(key as PigDelivery)} className={cn('w-full p-6 text-left border-2 rounded-xl',deliveryType===key?'border-neutral-900 bg-neutral-50':'border-neutral-200')}><div className='flex items-center justify-between gap-4'><div><p className='font-medium'>{lang==='no'?option.label:option.labelEn}</p><p className='mt-1 text-sm text-neutral-600'>{lang==='no'?option.date:option.dateEn}</p></div><span className='whitespace-nowrap text-sm tabular-nums'>{key==='farm'?t.common.free:'+'+(key==='e6'?(addonPrices?.e6 ?? 400):(addonPrices?.trondheim ?? 200))+' kr'}</span></div></button>)}
                     </div>
                   </div>
 
@@ -1802,10 +1769,10 @@ export default function CheckoutPage() {
                   {deliveryType !== 'farm' && addonPrices && (
                     <div className="flex justify-between text-sm">
                       <span className="font-light text-neutral-600">
-                        {deliveryType === 'trondheim' ? t.checkout.pickupTrondheim : t.checkout.deliveryE6}
+                        {lang==='no'?pigDeliveries[deliveryType].label:pigDeliveries[deliveryType].labelEn}
                       </span>
                       <span className="font-light text-neutral-900 tabular-nums">
-                        +{deliveryType === 'trondheim' ? addonPrices.trondheim : addonPrices.e6} kr
+                        +{deliveryType === 'e6' ? addonPrices.e6 : addonPrices.trondheim} kr
                       </span>
                     </div>
                   )}
@@ -1838,8 +1805,8 @@ export default function CheckoutPage() {
                 {/* Total */}
                 <div className="space-y-4">
                   <div className="flex justify-between text-sm">
-                    <span className="font-light text-neutral-600">{t.checkout.deposit50Percent}</span>
-                    <span className="font-light text-neutral-900 tabular-nums">{baseDepositTotal.toLocaleString(locale)} {t.common.currency}</span>
+                    <span className="font-light text-neutral-600">{totalDiscount ? (lang === 'no' ? 'Forskudd etter rabatt' : 'Deposit after discount') : t.checkout.deposit50Percent}</span>
+                    <span className="font-light text-neutral-900 tabular-nums">{totalDiscount ? <><del>{baseDepositTotal.toLocaleString(locale)} {t.common.currency}</del> <strong style={{color:'#b53e2d'}}>{depositTotal.toLocaleString(locale)} {t.common.currency}</strong></> : <>{baseDepositTotal.toLocaleString(locale)} {t.common.currency}</>}</span>
                   </div>
                   {referralData && (
                     <div className="flex justify-between text-sm text-green-700">

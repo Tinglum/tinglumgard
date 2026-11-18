@@ -6,6 +6,9 @@ import { logError } from '@/lib/logger';
 import { getFixedExtraQuantityForSlug } from '@/lib/extras/fixedQuantities';
 import { createOrderAccessToken } from '@/lib/auth/order-access';
 import { VIPPS_PENDING_EMAIL } from '@/lib/constants';
+import { PIG_CAMPAIGN_CODE } from '@/lib/pig-campaign';
+import { validatePigCampaignOffer } from '@/lib/pig-campaign-server';
+export const dynamic = 'force-dynamic';
 
 interface ExtraProduct {
   slug: string;
@@ -16,7 +19,7 @@ interface CheckoutRequest {
   mangalitsaPresetId?: string;
   ribbeChoice: 'tynnribbe' | 'familieribbe' | 'porchetta' | 'butchers_choice';
   extraProducts?: ExtraProduct[];
-  deliveryType: 'pickup_farm' | 'pickup_e6' | 'delivery_trondheim';
+  deliveryType: 'pickup_farm' | 'pickup_e6' | 'delivery_trondheim' | 'pickup_oslo';
   freshDelivery: boolean;
   notes?: string;
   customerName?: string;
@@ -52,7 +55,7 @@ async function ensureAutoReferralCode(options: {
 
   const { data: existingCode, error: existingCodeError } = await supabaseAdmin
     .from('referral_codes')
-    .select('code')
+    .select('id,code,order_id')
     .eq('owner_phone', ownerPhone)
     .eq('is_active', true)
     .order('created_at', { ascending: true })
@@ -65,6 +68,10 @@ async function ensureAutoReferralCode(options: {
   }
 
   if (existingCode?.code) {
+    if(!existingCode.order_id && options.orderId) {
+      const {error:linkError}=await supabaseAdmin.from('referral_codes').update({order_id:options.orderId}).eq('id',existingCode.id).is('order_id',null);
+      if(linkError) { logError('checkout-referral-link-order',linkError);return null; }
+    }
     return existingCode.code;
   }
 
@@ -114,7 +121,10 @@ export async function POST(request: NextRequest) {
 
   try {
     const body: CheckoutRequest = await request.json();
-    const { mangalitsaPresetId, ribbeChoice, extraProducts, deliveryType, freshDelivery, notes, customerName, customerEmail, customerPhone, referralCode, referredByPhone, rebateCode } = body;
+    const { mangalitsaPresetId, ribbeChoice, extraProducts, deliveryType, freshDelivery, notes, customerName, customerEmail, customerPhone, referralCode: rawReferralCode, rebateCode: rawRebateCode } = body;
+    const referralCode = typeof rawReferralCode==='string' ? rawReferralCode.trim().toUpperCase() : undefined;
+    const rebateCode = typeof rawRebateCode==='string' ? rawRebateCode.trim().toUpperCase() : undefined;
+    if(referralCode && rebateCode) return NextResponse.json({error:'Velg én rabatt; koder kan ikke kombineres'},{status:400});
 
     const normalizedExtraProducts: ExtraProduct[] = Array.isArray(extraProducts)
       ? extraProducts
@@ -131,6 +141,7 @@ export async function POST(request: NextRequest) {
     if (!mangalitsaPresetId) {
       return NextResponse.json({ error: 'Mangalitsa preset is required' }, { status: 400 });
     }
+    if (!['pickup_farm','pickup_e6','delivery_trondheim','pickup_oslo'].includes(deliveryType)) return NextResponse.json({error:'Invalid pickup option'},{status:400});
 
     const { data: mangalitsaPresetData, error: presetError } = await supabaseAdmin
       .from('mangalitsa_box_presets')
@@ -172,7 +183,7 @@ export async function POST(request: NextRequest) {
     let deliveryFee = 0;
     if (deliveryType === 'pickup_e6') {
       deliveryFee = pricing.delivery_fee_pickup_e6;
-    } else if (deliveryType === 'delivery_trondheim') {
+    } else if (deliveryType === 'delivery_trondheim' || deliveryType === 'pickup_oslo') {
       deliveryFee = pricing.delivery_fee_trondheim;
     }
     const freshFee = freshDelivery ? pricing.fresh_delivery_fee : 0;
@@ -270,21 +281,34 @@ export async function POST(request: NextRequest) {
 
     // Resolve referral discount server-side — never trust client-supplied amount
     let referralDiscountAmount = 0;
+    let resolvedReferrerPhone: string | null = null;
+    let referrerCreditAmount = 0;
     if (referralCode) {
       const { data: referralCodeRecord } = await supabaseAdmin
         .from('referral_codes')
-        .select('id, is_active, max_uses, current_uses')
+        .select('id, is_active, owner_phone, owner_email, order_id')
         .eq('code', referralCode)
         .maybeSingle();
-      if (referralCodeRecord?.is_active && (referralCodeRecord.max_uses == null || referralCodeRecord.current_uses < referralCodeRecord.max_uses)) {
-        // Referral discount is a fixed 20% of the base deposit
-        referralDiscountAmount = Math.round(baseDepositAmount * 0.20);
-      }
+      const normalizedPhone = (value?: string | null) => String(value || '').replace(/\D/g,'').replace(/^(?:0047|47)(?=\d{8}$)/,'');
+      const selfReferral = Boolean(customerPhone && normalizedPhone(customerPhone) === normalizedPhone(referralCodeRecord?.owner_phone)) || Boolean(customerEmail && customerEmail.trim().toLowerCase() === String(referralCodeRecord?.owner_email || '').trim().toLowerCase());
+      if (!referralCodeRecord?.is_active || !referralCodeRecord.order_id || selfReferral) return NextResponse.json({error:'Ugyldig vennerabattkode'},{status:400});
+      const {data: validation,error: validationError} = await supabaseAdmin.rpc('validate_referral_code',{p_code:referralCode,p_phone:customerPhone||'',p_email:customerEmail||''});
+      if (validationError || !validation?.valid) return NextResponse.json({error:validation?.error || 'Kunne ikke kontrollere vennerabatten'},{status:400});
+      const {data: referrerOrder,error: referrerError} = await supabaseAdmin.from('orders').select('deposit_amount,referral_discount_amount,rebate_discount_amount,status').eq('id',referralCodeRecord.order_id).maybeSingle();
+      if (referrerError || !referrerOrder || ['draft','cancelled','forfeited'].includes(referrerOrder.status)) return NextResponse.json({error:'Vennelenken er ikke klar ennå'},{status:400});
+      referralDiscountAmount = Math.round(baseDepositAmount * .30);
+      resolvedReferrerPhone = referralCodeRecord.owner_phone;
+      const originalReferrerDeposit = Number(referrerOrder.deposit_amount) + Math.max(Number(referrerOrder.referral_discount_amount)||0,Number(referrerOrder.rebate_discount_amount)||0);
+      referrerCreditAmount = Math.round(originalReferrerDeposit * .20);
     }
 
     // Resolve rebate discount server-side — never trust client-supplied amount
     let rebateDiscountAmount = 0;
-    if (rebateCode) {
+    if(rebateCode===PIG_CAMPAIGN_CODE) {
+      const offer=await validatePigCampaignOffer({depositAmount:baseDepositAmount,customerEmail,customerPhone});
+      if(!offer.valid) return NextResponse.json({error:offer.error},{status:400});
+      rebateDiscountAmount=offer.discount_amount || 0;
+    } else if (rebateCode) {
       const now = new Date().toISOString();
       const { data: rebateRecord } = await supabaseAdmin
         .from('rebate_codes')
@@ -332,17 +356,19 @@ export async function POST(request: NextRequest) {
         deposit_amount: depositAmount,
         remainder_amount: remainderAmount,
         total_amount: totalAmount,
+        box_price_nok: basePrice,
         customer_name: customerName || 'Vipps kunde',
         customer_email: customerEmail || VIPPS_PENDING_EMAIL,
         customer_phone: customerPhone || null,
         delivery_type: deliveryType,
+        pickup_date: deliveryType === 'delivery_trondheim' ? '2026-12-20' : deliveryType === 'pickup_e6' || deliveryType === 'pickup_oslo' ? '2026-12-21' : null,
         fresh_delivery: freshDelivery,
         notes: notes || '',
         ribbe_choice: ribbeChoice,
         extra_products: extraProductsData,
         referral_code_used: referralCode || null,
         referral_discount_amount: referralDiscountAmount,
-        referred_by_phone: referredByPhone || null,
+        referred_by_phone: resolvedReferrerPhone,
         rebate_code_used: rebateCode || null,
         rebate_discount_amount: rebateDiscountAmount,
       })
@@ -377,7 +403,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Create referral tracking record if referral code was used
-    if (referralCode && referredByPhone && customerPhone) {
+    if (referralCode && resolvedReferrerPhone && customerPhone && referralDiscountAmount > 0) {
       try {
         // Get the referral code record
         const { data: codeRecord } = await supabaseAdmin
@@ -388,18 +414,18 @@ export async function POST(request: NextRequest) {
 
         if (codeRecord) {
           // Calculate credit for referrer (20% of original deposit before discount)
-          const creditAmount = Math.round(baseDepositAmount * 0.20);
+          const creditAmount = referrerCreditAmount;
 
           // Create referral tracking
           await supabaseAdmin
             .from('referrals')
             .insert({
               referral_code_id: codeRecord.id,
-              referrer_phone: referredByPhone,
+              referrer_phone: resolvedReferrerPhone,
               referee_phone: customerPhone,
               order_id: order.id,
               order_number: order.order_number,
-              discount_percentage: 20.00,
+              discount_percentage: 30.00,
               discount_amount_nok: referralDiscountAmount,
               credit_percentage: 20.00,
               credit_amount_nok: creditAmount,

@@ -211,7 +211,7 @@ export async function PATCH(
           let oldDeliveryFee = 0;
           if (currentOrder.delivery_type === 'pickup_e6') {
             oldDeliveryFee = pickupE6Fee;
-          } else if (currentOrder.delivery_type === 'delivery_trondheim') {
+          } else if ((currentOrder.delivery_type === 'delivery_trondheim' || currentOrder.delivery_type === 'pickup_oslo')) {
             oldDeliveryFee = trondheimFee;
           }
 
@@ -219,7 +219,7 @@ export async function PATCH(
           let newDeliveryFee = 0;
           if (newDeliveryType === 'pickup_e6') {
             newDeliveryFee = pickupE6Fee;
-          } else if (newDeliveryType === 'delivery_trondheim') {
+          } else if ((newDeliveryType === 'delivery_trondheim' || newDeliveryType === 'pickup_oslo')) {
             newDeliveryFee = trondheimFee;
           }
 

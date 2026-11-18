@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { logError } from '@/lib/logger';
+import { PIG_CAMPAIGN_CODE } from '@/lib/pig-campaign';
+import { validatePigCampaignOffer } from '@/lib/pig-campaign-server';
 
 // POST /api/rebate-codes/validate - Validate a rebate code (no auth required)
 export async function POST(request: NextRequest) {
@@ -14,6 +16,7 @@ export async function POST(request: NextRequest) {
     if (!boxSize || !depositAmount) {
       return NextResponse.json({ error: 'Box size and deposit amount required' }, { status: 400 });
     }
+    if(code.toUpperCase().trim()===PIG_CAMPAIGN_CODE) return NextResponse.json(await validatePigCampaignOffer({depositAmount:Number(depositAmount),customerEmail,customerPhone}));
 
     // Call the validation function in the database. `presetSlug` (e.g.
     // 'premium-cuts') is the preferred match since it unambiguously

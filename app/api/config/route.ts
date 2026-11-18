@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { getPricingConfig } from '@/lib/config/pricing';
 import { logError } from '@/lib/logger';
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {

@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { randomBytes } from 'crypto';
 import { logError } from '@/lib/logger';
+import { qualifyingPigReferrals } from '@/lib/pig-campaign';
 
 function buildReferralCodeBase(name?: string | null, phone?: string | null) {
   const cleanedName = (name || '')
@@ -140,28 +141,49 @@ export async function GET() {
 
     if (referralsError) throw referralsError;
 
-    // Calculate if user has unused bonus potential
-    const unusedBonusCount = Math.max(0, referrals.length - referralCode.max_uses);
+    const { data: ownOrder, error: ownOrderError } = await supabaseAdmin
+      .from('orders')
+      .select('id, box_price_nok, deposit_amount, referral_discount_amount, rebate_discount_amount, mangalitsa_preset:mangalitsa_box_presets(price_nok)')
+      .eq('customer_phone', ownerPhone)
+      .not('status', 'in', '(draft,cancelled,forfeited)')
+      .order('created_at', { ascending: true }).limit(1).maybeSingle();
+    if (ownOrderError) throw ownOrderError;
+    const orderIds = referrals.map(r => r.order_id).filter(Boolean);
+    const paidOrdersResult = orderIds.length
+      ? await supabaseAdmin.from('orders').select('id,status,payments(payment_type,status)').in('id', orderIds)
+      : { data: [], error: null };
+    if (paidOrdersResult.error) throw paidOrdersResult.error;
+    const qualifying = qualifyingPigReferrals(referrals, paidOrdersResult.data || []);
+    const preset = Array.isArray(ownOrder?.mangalitsa_preset) ? ownOrder?.mangalitsa_preset[0] : ownOrder?.mangalitsa_preset;
+    const originalBoxPrice = ownOrder ? Math.round(Number(ownOrder.box_price_nok) || (
+      Math.max(Number(ownOrder.referral_discount_amount) || 0, Number(ownOrder.rebate_discount_amount) || 0) > 0
+        ? (Number(ownOrder.deposit_amount) + Math.max(Number(ownOrder.referral_discount_amount) || 0, Number(ownOrder.rebate_discount_amount) || 0)) * 2
+        : Number(preset?.price_nok) || Number(ownOrder.deposit_amount) * 2
+    )) : 0;
+    const perFriend = Math.round(originalBoxPrice * .1);
+    const creditEarned = Math.min(Math.round(originalBoxPrice / 2), qualifying.length * perFriend);
+    const creditUsed = Math.min(creditEarned, qualifying.filter(r => r.credit_applied).length * perFriend);
 
     return NextResponse.json({
       hasCode: true,
       code: referralCode.code,
       stats: {
-        totalReferrals: referrals.length,
-        creditsEarned: referralCode.total_credits_earned,
-        creditsAvailable: referralCode.credits_available,
-        creditsUsed: referralCode.credits_used,
-        maxUses: referralCode.max_uses,
-        currentUses: referralCode.current_uses,
-        unusedBonusCount,
+        totalReferrals: qualifying.length,
+        creditsEarned: creditEarned,
+        creditsAvailable: creditEarned - creditUsed,
+        creditsUsed: creditUsed,
+        maxUses: 5,
+        currentUses: qualifying.length,
+        unusedBonusCount: 0,
       },
-      referrals: referrals.map((r) => ({
+      progress: ownOrder ? { paidFriends: qualifying.length, creditEarned, originalBoxPrice, boxRemainder: Math.max(0, Math.round(originalBoxPrice / 2) - creditEarned) } : null,
+      referrals: qualifying.map((r) => ({
         id: r.id,
         name: r.referee_name,
         date: r.created_at,
         orderNumber: r.order_number,
         discountAmount: r.discount_amount_nok,
-        creditAmount: r.credit_amount_nok,
+        creditAmount: perFriend,
         creditApplied: r.credit_applied,
       })),
       hasPlacedOrder,

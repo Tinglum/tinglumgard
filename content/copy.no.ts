@@ -341,7 +341,7 @@
     pageTitle: "Reserver din boks",
     subtitle: "Reserver din boks med Vipps",
     selectSize:
-      "Velg boks, ribbetype og eventuelle tilvalg. Du betaler 50 % i forskudd nå, og resten før levering (senest 5. desember).",
+      "Velg boks, ribbetype og eventuelle tilvalg. Forskudd, rabatt og hentevalg vises før betaling. Resten betales før levering.",
 
     // Steps
     stepSize: "Boks",
@@ -1474,8 +1474,8 @@
     getCredit: "Gi venner rabatt på ullgriskasse – og få kreditt selv",
     howItWorks: "Slik fungerer det:",
     step1: "Du oppretter en personlig rabattkode",
-    step2: "Venner får 20% rabatt på forskuddet når de bestiller en ullgriskasse",
-    step3: "Du får 10% kreditt på din egen ullgriskasse for hver venn som bestiller",
+    step2: "Venner får 15% rabatt på boksen, tilsvarende 30% rabatt på ordinært forskudd",
+    step3: "Du får 10% av din ordinære bokspris i bonus per venn med betalt forskudd",
     step4: "Maks 5 venner per bestilling kan gi deg kreditt",
     chooseCode: "Velg din unike kode (4-20 tegn, kun bokstaver og tall)",
     exampleCode: "f.eks. KENNETH2026",
@@ -1487,7 +1487,7 @@
     copied: "Kopiert!",
     copyCode: "Kopier kode",
     shareButton: "Del kode",
-    friendsGet20: "Venner får 20% rabatt på ullgriskasse • Du får 10% kreditt på din egen kasse",
+    friendsGet20: "Venner får 15% rabatt på boksen • Du får 10% bonus per venn med betalt forskudd",
     totalReferrals: "Totale henvisninger",
     availableCredit: "Tilgjengelig kreditt",
     creditRemaining: "Kredittering igjen",
@@ -1507,7 +1507,7 @@
     useCode: "Bruk kode",
     newCustomersGet20: "Nye kunder får 20% rabatt på forskuddet på ullgriskasse ved bruk av vennerabattkode",
     codeActivated: "Kode aktivert: {code}",
-    youGet20Off: "Du får 20% rabatt på forskuddet ({amount} kr)",
+    youGet20Off: "Du får 30% rabatt på ordinært forskudd ({amount} kr) – 15% av boksprisen",
     youSave: "Du sparer {amount} kr",
     remove: "Fjern",
     invalidCode: "Ugyldig kode",
@@ -1516,7 +1516,7 @@
     couldNotCreate: "Kunne ikke opprette kode",
 
     // Share message
-    shareMessage: "Bestill ullgris fra Tinglum Gård og få 20% rabatt på forskuddet med min vennerabattkode: {code}",
+    shareMessage: "Bestill ullgris fra Tinglum Gård og få 15% rabatt på boksen med min vennerabattkode: {code}",
 
     // Pre-order state
     availableAfterFirstOrder: "Vennerabatt aktiveres etter at du har gjennomført din første bestilling hos oss.",
@@ -2475,15 +2475,15 @@
     step1DoneBody: "Forskudd mottatt. Du har mottatt en e-postbekreftelse.",
     step1TodoBody: "Betal forskudd på {amount} kr via Vipps.",
     step2Title: "Del vennerabatt",
-    step2Body: "Gi {give}% rabatt til venner og få {earn}% kreditt selv. Finn din kode på Min side.",
+    step2Body: "Gi venner 15% rabatt på boksen. Hver ny venn som betaler forskuddet gir deg 10% av din ordinære bokspris i bonus, maks fem venner. Finn din lenke på Min side.",
     myPage: "Min side",
     step3Title: "Grisene vokser opp",
     step3Body: "Grisene lever på gården gjennom {year} og blir slaktet lokalt i desember.",
-    step4Title: "Betaling av restbeløpet senest 5. desember",
+    step4Title: "Betaling av restbeløpet før utlevering",
     step4Body:
-      "Betal restbeløpet så raskt du kan for å sikre deg ekstravalg. Siste frist for restbetaling er 5. desember.",
+      "Restbeløpet betales før utlevering. Opptjent vennebonus trekkes fra resten for selve boksen; transport og tillegg kommer utenom.",
     step5Title: "Kassene er klare for henting",
-    step5Body: "Kassene er klare for henting 12.–15. desember. Ved fersk levering gjelder 19.–20. desember.",
+    step5Body: "Trondheim: 20. desember. Møtepunkt langs E6 og Majorstuen, Oslo: 21. desember. Henting på gården avtales. Nøyaktig tid og sted bekreftes før utlevering.",
     myOrders: "Se mine ordrer",
   },
 

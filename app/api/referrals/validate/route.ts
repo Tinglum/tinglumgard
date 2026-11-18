@@ -7,10 +7,6 @@ import { logError } from '@/lib/logger';
 export async function POST(request: NextRequest) {
   const session = await getSession();
 
-  if (!session) {
-    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  }
-
   try {
     const { code } = await request.json();
 
@@ -21,8 +17,8 @@ export async function POST(request: NextRequest) {
     // Call the validation function in the database
     const { data, error } = await supabaseAdmin.rpc('validate_referral_code', {
       p_code: code.toUpperCase().trim(),
-      p_phone: session.phoneNumber || '',
-      p_email: session.email || '',
+      p_phone: session?.phoneNumber || '',
+      p_email: session?.email || '',
     });
 
     if (error) throw error;
@@ -68,7 +64,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json(data);
+    const {referrer_phone: _privatePhone, ...publicResult} = data || {};
+    return NextResponse.json({...publicResult,discount_percentage:data?.valid ? 30 : undefined});
   } catch (error) {
     logError('referrals-validate', error);
     return NextResponse.json(

@@ -9,6 +9,8 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import { nb, enUS } from 'date-fns/locale';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { PigReferralTools } from '@/components/PigReferralTools';
+import { pigShareMessage } from '@/lib/pig-campaign';
 
 interface ReferralStats {
   totalReferrals: number;
@@ -112,7 +114,7 @@ export function ReferralDashboard() {
 
   function handleShareCode() {
     if (code) {
-      const shareText = `${t.referrals.shareMessage.replace('{code}', code)}\n\n${window.location.origin}/produkt`;
+      const shareText = pigShareMessage(code, lang);
 
       if (navigator.share) {
         navigator.share({
@@ -270,8 +272,10 @@ export function ReferralDashboard() {
           </div>
         </div>
 
-        <p className="text-sm text-gray-600 text-center">{t.referrals.friendsGet20}</p>
+        <p className="text-sm text-gray-600 text-center">{lang === 'no' ? 'Vennene dine får 15 % rabatt på selve boksen. Du tjener bonus når de bestiller og betaler forskuddet.' : 'Friends get 15% off their box. You earn credit when they order and pay the deposit.'}</p>
       </Card>
+
+      {code && <PigReferralTools code={code} />}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-6">

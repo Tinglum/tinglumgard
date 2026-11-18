@@ -3,6 +3,8 @@ import { getEffectiveBoxSize } from '@/lib/orders/display';
 import { evaluateEmailConsent } from '@/lib/email/consent';
 import { dispatchEmail } from '@/lib/email/dispatch';
 import { VIPPS_PENDING_EMAIL } from '@/lib/constants';
+import { renderPigCampaignEmail, type PigCampaignPersonalization } from '@/lib/email/pig-campaign';
+import { PIG_SITE } from '@/lib/pig-campaign';
 
 export interface CampaignRecipient {
   email: string;
@@ -284,6 +286,9 @@ export async function enqueueCampaignById(params: {
   }
 
   const typedCampaign = campaign as unknown as CampaignRecord;
+  if (typedCampaign.recipient_filter?.launch_blocked === true) {
+    return { ok: false, statusCode: 409, payload: { error: 'This campaign is blocked pending checkout verification and final approval' } };
+  }
   if (!['ready', 'queued', 'approved'].includes(typedCampaign.status)) {
     return {
       ok: false,
@@ -334,6 +339,30 @@ export async function enqueueCampaignById(params: {
 
   const recipients = (recipientRows || []).map((row) => toCampaignRecipient(row as RecipientRow));
   const eligibility = await evaluateCampaignRecipients(recipients);
+  const isPigCampaign = typedCampaign.recipient_filter?.kind === 'pig_christmas_2026';
+  const personalization = (typedCampaign.recipient_filter?.personalization || {}) as Record<string,PigCampaignPersonalization>;
+  if (isPigCampaign && eligibility.allowed.some(recipient => !personalization[recipient.email])) {
+    return { ok: false, statusCode: 409, payload: { error: 'A recipient is missing reviewed purchase history or pickup personalization' } };
+  }
+  // Recheck purchases just before a reminder; never remind someone who bought.
+  if (isPigCampaign && typedCampaign.recipient_filter?.reminder === true) {
+    const { data: buyers, error: buyerError } = await supabaseAdmin.from('orders').select('customer_email,customer_phone').not('status','in','(draft,cancelled,forfeited)');
+    if (buyerError) return { ok: false, statusCode: 503, payload: { error: 'Could not recheck purchases before the reminder' } };
+    const buyerEmails = new Set((buyers || []).map(row=>normalizeEmail(row.customer_email || '')));
+    const buyerPhones = new Set((buyers || []).map(row=>normalizePhone(row.customer_phone)));
+    eligibility.allowed = eligibility.allowed.filter(recipient => {
+      const purchased = buyerEmails.has(recipient.email) || Boolean(recipient.phone && buyerPhones.has(normalizePhone(recipient.phone)));
+      if (purchased) eligibility.skipped.push({...recipient,reason:'purchased_before_reminder'});
+      return !purchased;
+    });
+  }
+  let acceptingOrders = true;
+  if (isPigCampaign) {
+    const { count, error: availabilityError } = await supabaseAdmin.from('mangalitsa_box_presets').select('id',{count:'exact',head:true}).eq('active',true);
+    if (availabilityError) return { ok: false,statusCode:503,payload:{error:'Could not refresh availability before campaign send'} };
+    acceptingOrders = Boolean(count);
+    if (!acceptingOrders) return { ok:false,statusCode:409,payload:{error:'No boxes are currently accepting orders; campaign held'} };
+  }
   const recipientIdByEmail = new Map<string, string>();
 
   for (const row of recipientRows || []) {
@@ -377,7 +406,11 @@ export async function enqueueCampaignById(params: {
       to: recipient.email,
       toPhone: recipient.phone || undefined,
       subject,
-      html: bodyHtml,
+      html: isPigCampaign ? renderPigCampaignEmail(bodyHtml, personalization[recipient.email], {
+        offerUrl: `${PIG_SITE}/?rebate=KUNDEJUL15&utm_source=customer_email&utm_medium=email&utm_campaign=ullgris_jul_2026#bokser`,
+        acceptingOrders,
+        reminder: typedCampaign.recipient_filter?.reminder === true,
+      }) : bodyHtml,
       classification: typedCampaign.classification,
       locale,
       campaignId: typedCampaign.id,

@@ -12,6 +12,7 @@ import { RecipeQuickViewModal } from '@/components/RecipeQuickViewModal';
 import { ReferralCodeInput } from '@/components/ReferralCodeInput';
 import { RebateCodeInput } from '@/components/RebateCodeInput';
 import { FarmJourney } from '@/components/farm/FarmJourney';
+import { pigDeliveries, type PigDelivery } from '@/lib/pig-campaign';
 import {
   getDefaultExtraQuantity,
   getExtraStep,
@@ -33,8 +34,8 @@ interface MobileCheckoutProps {
   extraQuantities: Record<string, number>;
   setExtraQuantities: (quantities: Record<string, number>) => void;
   availableExtras: any[];
-  deliveryType: 'farm' | 'trondheim' | 'e6';
-  setDeliveryType: (type: 'farm' | 'trondheim' | 'e6') => void;
+  deliveryType: PigDelivery;
+  setDeliveryType: (type: PigDelivery) => void;
   freshDelivery: boolean;
   setFreshDelivery: (fresh: boolean) => void;
   agreedToTerms: boolean;
@@ -176,11 +177,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
     },
   ];
 
-  const deliveryOptions = [
-    { id: 'farm', name: t.checkout.pickupFarm, desc: t.checkout.pickupFarmAddress, price: 0 },
-    { id: 'trondheim', name: t.checkout.pickupTrondheim, desc: t.checkout.pickupTrondheimAddress, price: addonPrices?.trondheim || 200 },
-    { id: 'e6', name: t.checkout.deliveryE6, desc: t.checkout.deliveryE6Address, price: addonPrices?.e6 || 300 },
-  ];
+  const deliveryOptions = Object.entries(pigDeliveries).map(([id,option])=>({id,name:lang==='no'?option.label:option.labelEn,desc:lang==='no'?option.date:option.dateEn,price:id==='farm'?0:id==='e6'?(addonPrices?.e6 ?? 400):(addonPrices?.trondheim ?? 200)}));
 
   const ribbeSummary = ribbeOptions.find((opt) => opt.id === ribbeChoice)?.name || t.checkout.selectRibbeType;
   const deliverySummary = deliveryOptions.find((opt) => opt.id === deliveryType)?.name || t.checkout.deliveryOptions;
@@ -843,7 +840,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
               {deliveryType !== 'farm' && (
                 <div className="mt-2 flex items-center justify-between text-xs text-[#5E5A50]">
                   <span>{deliverySummary}</span>
-                  <span>{deliveryType === 'trondheim' ? addonPrices?.trondheim || 200 : addonPrices?.e6 || 300} {t.common.currency}</span>
+                  <span>{deliveryType === 'e6' ? addonPrices?.e6 ?? 400 : addonPrices?.trondheim ?? 200} {t.common.currency}</span>
                 </div>
               )}
 
@@ -884,7 +881,7 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                   <span>{totalPrice.toLocaleString(locale)} {t.common.currency}</span>
                 </div>
                 <div className="mt-2 flex items-center justify-between text-xs text-[#5E5A50]">
-                  <span>{t.checkout.deposit50Percent}</span>
+                  <span>{(referralDiscount || rebateDiscount) ? (lang === 'no' ? 'Forskudd etter rabatt' : 'Deposit after discount') : t.checkout.deposit50Percent}</span>
                   <span>{depositTotal.toLocaleString(locale)} {t.common.currency}</span>
                 </div>
                 <div className="mt-1 flex items-center justify-between text-xs text-[#5E5A50]">

@@ -38,8 +38,10 @@ function normalizePigDelivery(deliveryType?: string | null): {
   location?: string;
 } {
   switch (deliveryType) {
+    case 'pickup_oslo':
+      return { delivery_type:'pickup',location:'Majorstuen, Oslo' };
     case 'pickup_e6':
-      return { delivery_type: 'pickup', location: 'E6 Melhus' };
+      return { delivery_type: 'pickup', location: 'Avtalt møtepunkt langs E6' };
     case 'delivery_trondheim':
       return { delivery_type: 'delivery', location: 'Trondheim' };
     case 'pickup_farm':

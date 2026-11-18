@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
 import { logError } from '@/lib/logger';
 import { getPricingConfig } from '@/lib/config/pricing';
 

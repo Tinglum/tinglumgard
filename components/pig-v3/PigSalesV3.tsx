@@ -10,23 +10,24 @@ import { getDefaultExtraQuantity } from '@/lib/extras/fixedQuantities'
 import { displayCutName } from '@/lib/utils/text'
 import styles from './pig-sales-v3.module.css'
 import { FarmGallery } from './FarmGallery'
-import { ExtraDetails } from './ExtraDetails'
+import { pigDeliveries, pigOfferPrice, type PigDelivery } from '@/lib/pig-campaign'
+import { rememberPigOffer, rememberPigPickup } from '@/lib/pig-offer-client'
 
 type Part = 'nakke' | 'svinebog' | 'kotelettkam' | 'ribbeside' | 'skinke' | 'knoke' | 'annet'
 type Content = { content_name_no: string; content_name_en: string; part_key?: string; cut_id?: string; cut_slug?: string; target_weight_kg?: number | null }
 type Preset = { id: string; slug: string; name_no: string; name_en: string; target_weight_kg: number; price_nok: number; contents?: Content[] }
-type Extra = { id: string; slug: string; name_no: string; name_en: string; part_key?: string; cut_id?: string; cut_slug?: string; price_nok: number; pricing_type: string; stock_quantity: number | null; product_type?: string; default_quantity?: number; fixed_quantity?: number; description_no?: string; description_en?: string; kg_per_unit?: number; cut_size_from_kg?: number; cut_size_to_kg?: number; description_premium_no?: string; description_premium_en?: string; recipe_suggestions?: { title_no: string; title_en: string }[] }
+type Extra = { id: string; slug: string; name_no: string; name_en: string; part_key?: string; cut_id?: string; cut_slug?: string; price_nok: number; pricing_type: string; stock_quantity: number | null; product_type?: string; default_quantity?: number; fixed_quantity?: number; description_no?: string; description_en?: string }
 const sameCut = (item: Content, extra: Extra) => Boolean((item.cut_id && item.cut_id === extra.cut_id) || (item.cut_slug && item.cut_slug === extra.cut_slug))
 // Sausages, farse and mince are made from several parts, so they get their own group instead of sitting under the shoulder.
 const processedCut = /p[oø]lse|farse|kj[oø]ttdeig/i
 const groupPart = <T extends { part_key?: string; cut_slug?: string; slug?: string }>(item: T): T => processedCut.test(item.cut_slug || item.slug || '') ? { ...item, part_key: 'annet' } : item
-type Inventory = { boxesRemaining: number; isSoldOut: boolean }
+type Inventory = { boxesRemaining: number; isSoldOut: boolean; countsVerified?: boolean; availablePresets?: string[] }
 
-const boxNotes: Record<string, { no: string; en: string; image: string; credit?: string; source?: string }> = {
-  familieboks: { no: 'Til hverdager, helger og en velfylt fryser.', en: 'For weekdays, weekends and a well-stocked freezer.', image: '/recipes/familieboks-grilled-chops.jpg' },
+const boxNotes: Record<string, { no: string; en: string; image: string }> = {
+  familieboks: { no: 'Til hverdager, helger og en velfylt fryser.', en: 'For weekdays, weekends and a well-stocked freezer.', image: '/recipes/bog-langtid.jpg' },
   julespesial: { no: 'Ribba og resten av de gode julemiddagene.', en: 'Pork belly and all those Christmas dinners.', image: '/recipes/norsk-ribbe-uten-svor.png' },
   'bbq-steakhouse': { no: 'For deg som helst fyrer opp grillen.', en: 'For those who would rather fire up the grill.', image: '/recipes/tomahawk-chimichurri.jpg' },
-  'premium-cuts': { no: 'Små, ettertraktede stykker. Store muligheter.', en: 'Rare, sought-after cuts. Plenty of possibilities.', image: '/recipes/premium-tenderloin-skillet.jpg' },
+  'premium-cuts': { no: 'Små, ettertraktede stykker. Store muligheter.', en: 'Rare, sought-after cuts. Plenty of possibilities.', image: '/recipes/secreto-plancha.jpg' },
 }
 const cuts: Record<Part, { no: string; en: string; textNo: string; textEn: string; methodNo: string; methodEn: string; recipe: string; image: string }> = {
   nakke: { no: 'Nakke', en: 'Collar', textNo: 'God marmorering og mye smak. Nakkekam kan stekes hel, grilles i skiver eller spekes til coppa.', textEn: 'Rich marbling and plenty of flavour. Roast it whole, grill thick slices or cure it as coppa.', methodNo: 'Grill eller langtidsstek', methodEn: 'Grill or slow-roast', recipe: 'neck-steak', image: '/recipes/neck-steak.jpg' },
@@ -61,13 +62,55 @@ export function PigSalesV3({ standalone = true }: { standalone?: boolean }) {
   const [mealIndex, setMealIndex] = useState(0)
   const [extras, setExtras] = useState<Extra[]>([])
   const [selectedExtras, setSelectedExtras] = useState<string[]>([])
-  const [extraSort, setExtraSort] = useState('part')
   const [extrasError, setExtrasError] = useState(false)
   const [showOrderBar, setShowOrderBar] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [offerQuery, setOfferQuery] = useState('')
+  const [offerActive, setOfferActive] = useState(false)
+  const [offerError, setOfferError] = useState(false)
+  const [pickupChoice, setPickupChoice] = useState<PigDelivery | null>(null)
   const pageRef = useRef<HTMLDivElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
   const detailRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const carry = rememberPigOffer(window.location.search)
+    const pickup = carry.get('pickup')
+    if (pickup) setPickupChoice(pickup as PigDelivery)
+    setOfferQuery(carry.toString() ? '&'+carry.toString() : '')
+    const slug = params.get('preset')
+    if (slug && order.includes(slug)) setSelectedSlug(slug)
+  }, [])
+
+  useEffect(() => {
+    const params = new URLSearchParams(offerQuery)
+    const code = params.get('ref') || params.get('rebate')
+    const box = presets[0]
+    if (!code || !box) return
+    const controller = new AbortController()
+    setOfferActive(false)
+    setOfferError(false)
+    fetch(params.has('ref') ? '/api/referrals/validate' : '/api/rebate-codes/validate', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: controller.signal,
+      body: JSON.stringify({ code, boxSize: box.target_weight_kg, presetSlug: box.slug, depositAmount: Math.round(box.price_nok / 2) }),
+    }).then(async response => {
+      const result = await response.json()
+      if (!response.ok || !result.valid || Number(result.discount_percentage ?? result.discount_value) !== 30) throw new Error('Offer unavailable')
+      if (!controller.signal.aborted) setOfferActive(true)
+    }).catch(() => { if (!controller.signal.aborted) setOfferError(true) })
+    return () => controller.abort()
+  }, [offerQuery, presets])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const refresh = async () => {
+      if (document.hidden) return
+      try { const response = await fetch('/api/inventory', { cache: 'no-store', signal: controller.signal }); if (response.ok) setInventory(await response.json()) } catch { /* Retain the last verified status; no fabricated stock count. */ }
+    }
+    const interval = setInterval(refresh, 60_000)
+    document.addEventListener('visibilitychange', refresh)
+    return () => { controller.abort(); clearInterval(interval); document.removeEventListener('visibilitychange', refresh) }
+  }, [])
   // On phones the detail panel sits below the list, so bring it into view after a tap.
   const choosePart = (key: Part) => {
     setPart(key)
@@ -176,10 +219,23 @@ export function PigSalesV3({ standalone = true }: { standalone?: boolean }) {
   const contentName = (item: Content) => displayCutName(no ? item.content_name_no : item.content_name_en, lang)
   const chosenExtras = extras.filter(extra => selectedExtras.includes(extra.slug) && !selected?.contents?.some(item => sameCut(item, extra)) && (typeof extra.stock_quantity !== 'number' || extra.stock_quantity > 0))
   const extrasTotal = chosenExtras.reduce((total, extra) => total + extra.price_nok * getDefaultExtraQuantity(extra), 0)
-  const total = (selected?.price_nok || 0) + extrasTotal
-  const href = selected ? `/bestill?preset=${encodeURIComponent(selected.slug)}${chosenExtras.map(extra => `&extra=${encodeURIComponent(extra.slug)}`).join('')}` : '/bestill'
+  const boxTotal = (price: number) => offerActive ? pigOfferPrice(price).total : price
+  const boxDeposit = (price: number) => offerActive ? pigOfferPrice(price).deposit : Math.round(price / 2)
+  const priceLabel = (price: number) => offerActive ? <span className={styles.discountPrice}><del aria-label={t('Ordinær pris', 'Regular price')}>{money(price)}</del><span className={styles.salePrice}>{money(boxTotal(price))}</span></span> : money(price)
+  const pickup = pickupChoice ? pigDeliveries[pickupChoice] : null
+  const deliveryFee = pickup?.fee || 0
+  const total = (selected ? boxTotal(selected.price_nok) : 0) + extrasTotal + deliveryFee
+  const choosePickup = (choice: PigDelivery) => {
+    setPickupChoice(choice)
+    rememberPigPickup(choice)
+    const params = new URLSearchParams(offerQuery)
+    params.set('pickup', choice)
+    setOfferQuery('&' + params.toString())
+  }
+  const href = selected ? `/bestill?preset=${encodeURIComponent(selected.slug)}${chosenExtras.map(extra => `&extra=${encodeURIComponent(extra.slug)}`).join('')}${offerQuery}` : '/bestill'
   const toggleExtra = (slug: string) => setSelectedExtras(current => current.includes(slug) ? current.filter(item => item !== slug) : [...current, slug])
-  const soldOut = inventory?.isSoldOut === true
+  const soldOut = inventory?.isSoldOut === true || inventory?.availablePresets?.length === 0
+  const selectedUnavailable = soldOut || Boolean(selected && inventory?.availablePresets && !inventory.availablePresets.includes(selected.id))
   const activeCut = cuts[part]
   const contentsForCut = selected?.contents?.filter(item => item.part_key === part) || []
   const includedParts = new Set(selected?.contents?.map(item => item.part_key).filter(Boolean))
@@ -190,30 +246,13 @@ export function PigSalesV3({ standalone = true }: { standalone?: boolean }) {
     items.findIndex(other => (other.cut_id || other.cut_slug || other.content_name_no) === (item.cut_id || item.cut_slug || item.content_name_no)) === index)
   const cutKey = (item: Content) => item.cut_id || item.cut_slug || item.content_name_no
   // Three groups, never mixed: in your box / paid add-ons / only in other boxes.
-  const extraWeight = (extra: Extra) => {
-    const qty = getDefaultExtraQuantity(extra)
-    const kg = (value: number) => value.toLocaleString(no ? 'nb-NO' : 'en-GB')
-    if (extra.pricing_type === 'per_kg') return `${t('Ca.', 'Approx.')} ${kg(qty)} kg · ${money(extra.price_nok)}/kg`
-    const grams = extra.description_no?.match(/ca\.?\s*(\d+)\s*g\b/i)
-    const weight = extra.kg_per_unit && extra.kg_per_unit > 0 ? `${kg(extra.kg_per_unit * qty)} kg`
-      : grams ? `${kg(Number(grams[1]) * qty)} g`
-      : extra.cut_size_from_kg && extra.cut_size_to_kg ? `${kg(extra.cut_size_from_kg * qty)}–${kg(extra.cut_size_to_kg * qty)} kg`
-      : null
-    return `${qty} ${extra.slug === 'koteletter' ? t('pakke', 'pack') : t('stk', 'pcs')} · ${weight ? `${t('ca.', 'approx.')} ${weight}` : t('vekt bekreftes', 'weight to be confirmed')}`
-  }
-  const availableExtras = extras.filter(extra => !selected?.contents?.some(item => sameCut(item, extra))).sort((a, b) => {
-    const unavailable = (item: Extra) => typeof item.stock_quantity === 'number' && item.stock_quantity <= 0 ? 1 : 0
-    const stockOrder = unavailable(a) - unavailable(b)
-    const priceOrder = a.price_nok * getDefaultExtraQuantity(a) - b.price_nok * getDefaultExtraQuantity(b)
-    const titleOrder = (no ? a.name_no : a.name_en).localeCompare(no ? b.name_no : b.name_en, no ? 'nb' : 'en')
-    return stockOrder || (extraSort === 'price-asc' ? priceOrder : extraSort === 'price-desc' ? -priceOrder : extraSort === 'name' ? titleOrder : (a.part_key || 'zzz').localeCompare(b.part_key || 'zzz') || titleOrder)
-  })
+  const availableExtras = extras.filter(extra => !selected?.contents?.some(item => sameCut(item, extra)))
   const otherBoxCuts = boxOnlyCuts.filter(item => !contentsForCut.some(other => cutKey(other) === cutKey(item)))
   const meal = heroMeals[mealIndex]
   const cta = t('Bestill din boks nå', 'Order your box now')
   const faqs = [
-    [t('Hvordan betaler jeg?', 'How do I pay?'), t('Du betaler 50 % når du bestiller. Resten betales senest 5. desember. Beløp og betalingsvalg vises i bestillingen.', 'Pay 50% when you order, with the balance due 5 December. Amounts and payment options are shown at checkout.')],
-    [t('Når og hvor får jeg boksen?', 'When and where do I get my box?'), t('Restbetaling forfaller 5. desember. Slakting skjer i uke 50 (7.–13. desember). Henting er 12.–15. desember. Fersk henting er lørdag 19. og søndag 20. desember. Du ser tilgjengelige leverings- og hentevalg, datoer og eventuelle kostnader i bestillingen.', 'The balance is due 5 December. Slaughter is in week 50 (7–13 December). Pickup is 12–15 December. Fresh pickup is Saturday 19 and Sunday 20 December. Available delivery and collection options, dates and charges are shown at checkout.')],
+    [t('Hvordan betaler jeg?', 'How do I pay?'), offerActive ? t('Med kunderabatten betaler du 35 % av ordinær bokspris nå og 50 % før levering. Transport og tillegg kommer utenom.', 'With your discount, pay 35% of the regular box price now and 50% before delivery. Transport and extras are additional.') : t('Du betaler 50 % når du bestiller. Resten betales før levering. Beløp og betalingsvalg vises i bestillingen.', 'Pay 50% when you order, with the balance due before delivery. Amounts and payment options are shown at checkout.')],
+    [t('Når og hvor får jeg boksen?', 'When and where do I get my box?'), t('Hent gratis på gården etter avtale. Trondheim 20. desember: 200 kr. E6 mot Oslo 21. desember: 400 kr. Majorstuen, Oslo 21. desember: 200 kr. Nøyaktig sted og tid bekreftes før utlevering.', 'Farm collection is free by arrangement. Trondheim on 20 December: NOK 200. E6 towards Oslo on 21 December: NOK 400. Majorstuen, Oslo on 21 December: NOK 200. Exact locations and times are confirmed before collection.')],
     [t('Kan jeg tilpasse boksen?', 'Can I customise my box?'), t('Hver boks har et grunninnhold. Tilgjengelige tillegg og valg vises når du bestiller. Vektene er omtrentlige og kan variere ved stykning.', 'Each box has a core selection. Available extras and choices are shown at checkout. Cut weights are approximate and can vary with butchery.')],
     [t('Hvor mye fryseplass trenger jeg?', 'How much freezer space do I need?'), t('Se på boksens totalvekt og plassen du har ledig. Pakkenes form og størrelsen på fryseskuffene varierer. Kontakt oss om du er usikker før du bestiller.', 'Check the total box weight against the space you have available. Pack shapes and freezer drawer sizes vary. Contact us before ordering if you are unsure.')],
   ]
@@ -231,9 +270,9 @@ export function PigSalesV3({ standalone = true }: { standalone?: boolean }) {
       <section id="v3-hero" className={styles.hero} aria-labelledby="v3-title">
         <div className={styles.heroCopy}>
           <h1 id="v3-title">{t('ULLGRIS', 'MANGALITSA')}<br />{t('TIL JUL.', 'FOR CHRISTMAS.')}<br /><span>{t('DIN BOKS.', 'YOUR BOX.')}</span></h1>
-          <p>{t('Mangalitsa fra Namdalseid til julemiddagen og dagene rundt. Velg boksen som passer deg. Henting 12.–15. desember.', 'Mangalitsa from Namdalseid for Christmas dinner and beyond. Choose your box. Pickup 12–15 December. Fresh pickup 19–20 December.')}</p>
+          <p>{t('Mangalitsa fra Namdalseid til julemiddagen og dagene rundt. Velg boksen som passer deg. Trondheim 20. desember. E6 og Oslo 21. desember.', 'Mangalitsa from Namdalseid for Christmas dinner and beyond. Choose your box. Trondheim 20 December. E6 and Oslo 21 December.')}</p>
           <a href="#bokser" className={styles.primary}>{cta}<ArrowUpRight size={23} /></a>
-          {selected && <div className={styles.heroReceipt}><strong>{name(selected)} · {money(Math.floor(selected.price_nok / 2))} {t('betales nå', 'due now')}</strong><small>{t('50 % av boksprisen. Tillegg og eventuell levering betales med resten.', '50% of the box price. Extras and any delivery charge are paid with the balance.')}</small></div>}
+          {selected && <div className={styles.heroReceipt}><strong>{name(selected)} · {money(boxDeposit(selected.price_nok))} {t('betales nå', 'due now')}</strong><small>{offerActive ? t('15 % kunderabatt er trukket fra forskuddet. Transport og tillegg betales med resten.', 'Your 15% box discount is deducted from the deposit. Transport and extras are paid with the balance.') : t('50 % av boksprisen. Tillegg og eventuell levering betales med resten.', '50% of the box price. Extras and any delivery charge are paid with the balance.')}</small></div>}
           <a href="#livet-pa-garden" className={styles.textLink}>{t('Møt ullgrisene · bilder og video', 'Meet the pigs · photos and video')}<ArrowDown size={16} /></a>
           <a href="#stykningsdeler" className={styles.textLink}>{t('Bli kjent med stykningsdelene', 'Get to know the cuts')}<ArrowDown size={16} /></a>
         </div>
@@ -245,25 +284,27 @@ export function PigSalesV3({ standalone = true }: { standalone?: boolean }) {
         </div>
       </section>
 
-      <div className={styles.deliveryStrip}><span>{t('Fra Tinglum Gård', 'From Tinglum Farm')}</span><span>{t('Henting 12.–15. desember', 'Pickup 12–15 December')}</span><span>{t('50 % ved bestilling', '50% when ordering')}</span><a href="#bokser">{inventory ? soldOut ? t('Årets bokser er utsolgt', 'This year’s boxes are sold out') : t(`Ca. ${inventory.boxesRemaining} bokser igjen`, `Approx. ${inventory.boxesRemaining} boxes left`) : t('Se boksene', 'See the boxes')}<ArrowRight size={16} /></a></div>
+      <div className={styles.deliveryStrip}><span>{t('Fra Tinglum Gård', 'From Tinglum Farm')}</span><span>{t('Trondheim 20. desember · E6 og Oslo 21. desember', 'Trondheim 20 December · E6 and Oslo 21 December')}</span><span>{offerActive ? t('35 % ved bestilling med kunderabatt', '35% when ordering with your discount') : t('50 % ved bestilling', '50% when ordering')}</span><a href="#bokser">{inventory ? soldOut ? t('Årets bokser er utsolgt', 'This year’s boxes are sold out') : inventory.countsVerified ? t(`Ca. ${inventory.boxesRemaining} bokser igjen`, `Approx. ${inventory.boxesRemaining} boxes left`) : t('Bestill tidlig – boksene tilpasses bestillingene', 'Order early – boxes are allocated to orders') : t('Se boksene', 'See the boxes')}<ArrowRight size={16} /></a></div>
 
       <section id="bokser" className={styles.boxSection} aria-labelledby="box-title">
         <div className={styles.boxHeading}><h2 id="box-title">{t('HVA HAR DU', 'WHAT ARE YOU')}<br /><span>{t('LYST PÅ?', 'IN THE MOOD FOR?')}</span></h2><p>{t('Hverdagsmat, julemiddag eller noe skikkelig godt på grillen. Finn din favoritt, og se akkurat hva du får.', 'Weeknight dinners, Christmas roasts or something special for the grill. Pick a favourite and see what is inside.')}</p></div>
+      {(offerActive || offerError) && <div className={styles.offerNotice} role="status">{offerActive ? t('Din kunderabatt er aktiv. Prisene nedenfor inkluderer 15 % rabatt på boksen. Rabatten trekkes automatisk fra forskuddet ved betaling.', 'Your customer discount is active. The prices below include 15% off the box. Your discount is automatically deducted from the deposit at payment.') : t('Vi kunne ikke bekrefte rabatten. Kontroller rabattkoden i bestillingen før du betaler.', 'We could not verify your discount. Check the code at checkout before paying.')}</div>}
         {loading ? <div className={styles.loading} role="status">{t('Henter årets bokser …', 'Loading this year’s boxes …')}</div> : error ? <div className={styles.error} role="alert"><p>{t('Vi fikk ikke hentet boksene. Prøv igjen.', 'We could not load the boxes. Please try again.')}</p><button className={styles.primary} onClick={() => setAttempt(value => value + 1)}>{t('Prøv igjen', 'Try again')}<ArrowRight size={18} /></button></div> : !presets.length ? <p className={styles.error}>{t('Det er ingen bokser tilgjengelig akkurat nå.', 'No boxes are available right now.')}</p> : <>
           <div id="v3-box-picker" tabIndex={-1} className={styles.boxTabs} role="group" aria-label={t('Velg kjøttboks', 'Choose a meat box')}>{presets.map(box => {
             const Icon = boxIcons[box.slug] || ChefHat
-            return <button key={box.id} aria-pressed={selectedSlug === box.slug} className={selectedSlug === box.slug ? styles.selectedTab : ''} onClick={() => setSelectedSlug(box.slug)}><div className={styles.tabIcon} aria-hidden="true"><Icon strokeWidth={1.5} /></div><span>{name(box)}</span><small>{box.target_weight_kg} kg / {money(box.price_nok)}</small><em className={styles.boxAudience}>{boxNotes[box.slug] ? no ? boxNotes[box.slug].no : boxNotes[box.slug].en : ''} </em>{selectedSlug === box.slug ? <Check size={19} /> : <ArrowUpRight size={19} />}</button>
+            return <button key={box.id} aria-pressed={selectedSlug === box.slug} className={selectedSlug === box.slug ? styles.selectedTab : ''} onClick={() => setSelectedSlug(box.slug)}><div className={styles.tabIcon} aria-hidden="true"><Icon strokeWidth={1.5} /></div><span>{name(box)}</span><small>{box.target_weight_kg} kg / {priceLabel(box.price_nok)}</small><em className={styles.boxAvailability}>{inventory ? (inventory.isSoldOut || (inventory.availablePresets && !inventory.availablePresets.includes(box.id))) ? t('Ikke tilgjengelig nå', 'Unavailable now') : t('Tar imot bestillinger', 'Accepting orders') : t('Se tilgjengelighet i bestillingen', 'Check availability at checkout')}</em><em className={styles.boxAudience}>{boxNotes[box.slug] ? no ? boxNotes[box.slug].no : boxNotes[box.slug].en : ''} </em>{selectedSlug === box.slug ? <Check size={19} /> : <ArrowUpRight size={19} />}</button>
           })}</div>
           {selected && <div className={styles.boxDetail}>
-            <div className={styles.boxPhoto}><Image key={selected.slug} src={boxNotes[selected.slug]?.image || '/recipes/bog-langtid.jpg'} fill priority={selected.slug === 'julespesial'} sizes="(max-width: 767px) 100vw, 44vw" alt={t(`Matinspirasjon til ${name(selected)}`, `Cooking inspiration for ${name(selected)}`)} />{boxNotes[selected.slug]?.source && <a className={styles.photoCredit} href={boxNotes[selected.slug].source} target="_blank" rel="noreferrer">{t('Foto', 'Photo')}: {boxNotes[selected.slug].credit}</a>}<span className={styles.weightTag}>{selected.target_weight_kg}<small>kg</small></span><span className={styles.boxPhotoNote}>{t('Serveringsforslag', 'Serving suggestion')}</span></div>
+            <div className={styles.boxPhoto}><Image key={selected.slug} src={boxNotes[selected.slug]?.image || '/recipes/bog-langtid.jpg'} fill priority={selected.slug === 'julespesial'} sizes="(max-width: 767px) 100vw, 44vw" alt={t(`Matinspirasjon til ${name(selected)}`, `Cooking inspiration for ${name(selected)}`)} /><span className={styles.weightTag}>{selected.target_weight_kg}<small>kg</small></span><span className={styles.boxPhotoNote}>{t('Et av måltidene du kan lage', 'One of the meals you could make')}</span></div>
             <div className={styles.boxInfo}>
               <div className={styles.boxTitle}><h3 aria-live="polite">{name(selected)}</h3><p>{boxNotes[selected.slug] ? no ? boxNotes[selected.slug].no : boxNotes[selected.slug].en : t('Ullgris fra Tinglum Gård.', 'Mangalitsa from Tinglum Farm.')}</p></div>
               <div className={styles.contentsHeading}><strong>{t('Dette ligger i boksen', 'Inside your box')}</strong><span>{t('Trykk på et stykke for å lære mer', 'Choose a cut to learn more')}</span></div>
               <ul className={styles.contents}>{selected.contents?.map((item, index) => <li key={`${item.content_name_no}-${index}`}>{item.part_key && item.part_key in cuts ? <a href="#stykningsdeler" onClick={() => { setPart(item.part_key as Part) }}><span>{contentName(item)}</span><ArrowUpRight size={13} /></a> : <span>{contentName(item)}</span>}<small>{item.target_weight_kg ? `${item.target_weight_kg.toLocaleString(no ? 'nb-NO' : 'en-GB')} kg` : ''}</small></li>)}</ul>
               <small className={styles.weightNote}>{t('Omtrentlige vekter. Endelig innhold og leveringsvalg vises i bestillingen.', 'Approximate weights. Final contents and delivery options are shown at checkout.')}</small>
-              <div className={styles.priceLine}><div><small>{t('Bokspris', 'Box price')}</small><strong>{money(selected.price_nok)}</strong></div><p>{money(selected.price_nok / selected.target_weight_kg)} / kg<br /><span>{t('Basert på boksens omtrentlige totalvekt.', 'Based on the approximate total box weight.')}</span></p></div>
-              <div className={styles.paymentSplit}><span><small>{t('50 % ved bestilling', '50% when ordering')}</small><strong>{money(Math.floor(selected.price_nok / 2))}</strong></span><span><small>{t('Resten 5. desember', 'Balance due 5 December')}</small><strong>{money(selected.price_nok - Math.floor(selected.price_nok / 2))}</strong></span></div>
-              {soldOut ? <button disabled className={styles.primary}>{t('Utsolgt', 'Sold out')}</button> : <Link href={href} className={styles.primary}>{cta}<ArrowUpRight size={22} /></Link>}
+              <div className={styles.priceLine}><div><small>{t('Bokspris', 'Box price')}</small><strong>{priceLabel(selected.price_nok)}</strong></div><p>{money(boxTotal(selected.price_nok) / selected.target_weight_kg)} / kg<br /><span>{t('Basert på boksens omtrentlige totalvekt.', 'Based on the approximate total box weight.')}</span></p></div>
+              <div className={styles.pickupChoice}><label htmlFor="pig-pickup">{t('Ditt hentevalg', 'Your collection option')}</label><select id="pig-pickup" value={pickupChoice || 'farm'} onChange={event => choosePickup(event.target.value as PigDelivery)}>{Object.entries(pigDeliveries).map(([key, option]) => <option key={key} value={key}>{no ? option.label : option.labelEn} · {no ? option.date : option.dateEn} · {option.fee ? money(option.fee) : t('gratis', 'free')}</option>)}</select><small>{pickup ? `${no ? pickup.date : pickup.dateEn} · ${pickup.fee ? money(pickup.fee) : t('Gratis', 'Free')}` : t('Henting på gården er gratis. Du kan velge et annet hentested.', 'Farm collection is free. You can choose another location.')}</small></div>
+              <div className={styles.paymentSplit}><span><small>{offerActive ? t('35 % ved bestilling med kunderabatt', '35% when ordering with your discount') : t('50 % ved bestilling', '50% when ordering')}</small><strong>{money(boxDeposit(selected.price_nok))}</strong></span><span><small>{t('Resten før levering', 'Balance before delivery')}</small><strong>{money(selected.price_nok - Math.floor(selected.price_nok / 2))}</strong></span></div>
+              {selectedUnavailable ? <button disabled className={styles.primary}>{t('Utsolgt', 'Sold out')}</button> : <Link href={href} className={styles.primary}>{cta}<ArrowUpRight size={22} /></Link>}
               <p className={styles.checkoutNote}><Check size={13} />{t('Leveringsvalg og eventuell frakt vises før betaling.', 'Delivery options and any shipping charge are shown before payment.')}</p>
               {inventoryError && <p className={styles.weightNote}>{t('Lagerstatus kunne ikke hentes. Tilgjengelighet bekreftes i bestillingen.', 'Stock status could not be loaded. Availability is confirmed at checkout.')}</p>}
               {selected.contents?.some(item => item.part_key === 'ribbeside') && (
@@ -275,15 +316,32 @@ export function PigSalesV3({ standalone = true }: { standalone?: boolean }) {
             </div>
           </div>}
           <button className={styles.compareToggle} aria-expanded={compare} aria-controls="v3-comparison" onClick={() => setCompare(value => !value)}>{compare ? <Minus size={18} /> : <Plus size={18} />}{t('Sammenlign alle boksene', 'Compare all boxes')}</button>
-          <div id="v3-comparison" hidden={!compare} className={styles.comparison}><table><caption>{t('Vekt, pris og forskudd. Kiloprisen er basert på omtrentlige vekter.', 'Weight, price and deposit. Price per kg is based on approximate weights.')}</caption><thead><tr><th scope="col">{t('Boks', 'Box')}</th><th scope="col">{t('Vekt', 'Weight')}</th><th scope="col">{t('Pris', 'Price')}</th><th scope="col">{t('Per kg', 'Per kg')}</th><th scope="col">{t('Betales nå', 'Due now')}</th></tr></thead><tbody>{presets.map(box => <tr key={box.id} className={box.slug === selectedSlug ? styles.comparisonSelected : ''}><th scope="row"><button onClick={() => { setSelectedSlug(box.slug); setCompare(false); document.getElementById('v3-box-picker')?.focus({ preventScroll: true }) }}>{name(box)}<ArrowUpRight size={15} /></button></th><td>{box.target_weight_kg} kg</td><td>{money(box.price_nok)}</td><td>{money(box.price_nok / box.target_weight_kg)}</td><td>{money(Math.floor(box.price_nok / 2))}</td></tr>)}</tbody></table></div>
+          <div id="v3-comparison" hidden={!compare} className={styles.comparison}><table><caption>{t('Vekt, pris og forskudd. Kiloprisen er basert på omtrentlige vekter.', 'Weight, price and deposit. Price per kg is based on approximate weights.')}</caption><thead><tr><th scope="col">{t('Boks', 'Box')}</th><th scope="col">{t('Vekt', 'Weight')}</th><th scope="col">{t('Pris', 'Price')}</th><th scope="col">{t('Per kg', 'Per kg')}</th><th scope="col">{t('Betales nå', 'Due now')}</th></tr></thead><tbody>{presets.map(box => <tr key={box.id} className={box.slug === selectedSlug ? styles.comparisonSelected : ''}><th scope="row"><button onClick={() => { setSelectedSlug(box.slug); setCompare(false); document.getElementById('v3-box-picker')?.focus({ preventScroll: true }) }}>{name(box)}<ArrowUpRight size={15} /></button></th><td>{box.target_weight_kg} kg</td><td>{priceLabel(box.price_nok)}</td><td>{money(boxTotal(box.price_nok) / box.target_weight_kg)}</td><td>{money(boxDeposit(box.price_nok))}</td></tr>)}</tbody></table></div>
         </>}
       </section>
 
       <section id="stykningsdeler" className={styles.explorer} aria-labelledby="cut-title">
-        <div className={styles.explorerHeading}><h2 id="cut-title">{t('SE HVA DU FÅR.', 'SEE WHAT YOU GET.')}<br /><span>{t('LEGG TIL DET DU VIL.', 'ADD WHAT YOU LIKE.')}</span></h2><p>{t('Utforsk stykkene på grisen. Under kartet ser du alt som følger med boksen, og hvilke tillegg du kan velge.', 'Explore the cuts on the pig. Below the chart, see everything included in your box and the extras you can choose.')}</p></div>
+        <div className={styles.explorerHeading}><h2 id="cut-title">{t('SE HVA DU FÅR.', 'SEE WHAT YOU GET.')}<br /><span>{t('LEGG TIL DET DU VIL.', 'ADD WHAT YOU LIKE.')}</span></h2><p>{t('Alt i boksen vises til venstre. Tilgjengelige tillegg med pris vises til høyre. Du kan utforske stykningskartet lenger ned.', 'Everything in your box is shown on the left. Available extras and prices are shown on the right. You can explore the butcher chart below.')}</p></div>
         {!!presets.length && <div className={styles.explorerControls}><label htmlFor="v3-explorer-box">{t('Valgt boks', 'Selected box')}<select id="v3-explorer-box" value={selectedSlug} onChange={event => setSelectedSlug(event.target.value)}>{presets.map(box => <option key={box.id} value={box.slug}>{name(box)}</option>)}</select></label><span className={styles.boxCutCount}><Check size={16} />{t(`${selected?.contents?.length || 0} stykker inkludert`, `${selected?.contents?.length || 0} cuts included`)}</span></div>}
-        <div className={styles.cutExplorer}>
-          <h3>{t('Se hvor stykkene kommer fra', 'See where the cuts come from')}</h3><p>{t('Trykk på grisen for å utforske en del. Grønne områder finnes i valgt boks.', 'Choose a part of the pig to explore it. Green areas are included in your selected box.')}</p>
+        {selected && <div className={styles.catalogueOverview}>
+          <article className={styles.inTheBox}>
+            <header><small>{t('Inkludert i prisen', 'Included in the price')}</small><h3>{t('I din boks', 'In your box')}</h3><p>{name(selected)} · {selected.target_weight_kg} kg</p></header>
+            <ul>{selected.contents?.map((item, index) => <li key={`${cutKey(item)}-${index}`}><span><Check size={15} aria-hidden /><strong>{contentName(item)}</strong></span><small>{item.target_weight_kg ? `${t('ca.', 'approx.')} ${item.target_weight_kg.toLocaleString(no ? 'nb-NO' : 'en-GB')} kg` : t('Inkludert', 'Included')}</small></li>)}</ul>
+          </article>
+          <article className={styles.addOnCatalogue}>
+            <header><small>{t('Pris kommer i tillegg', 'Added to the box price')}</small><h3>{t('Dette kan du legge til', 'Available extras')}</h3><p>{t('Velg her. Valgene følger med videre til bestillingen.', 'Choose here. Your selections continue to checkout.')}</p></header>
+            {extrasError ? <div role="alert" className={styles.catalogueError}><p>{t('Tilleggene kunne ikke hentes.', 'Extras could not be loaded.')}</p><button onClick={() => setAttempt(value => value + 1)}>{t('Prøv igjen', 'Try again')}</button></div> :
+              <ul>{availableExtras.map(extra => {
+                const unavailable = soldOut || (typeof extra.stock_quantity === 'number' && extra.stock_quantity <= 0)
+                const chosen = selectedExtras.includes(extra.slug)
+                const qty = getDefaultExtraQuantity(extra)
+                const perKg = extra.pricing_type === 'per_kg'
+                return <li key={extra.id}><div><small>{extra.part_key && extra.part_key in cuts ? no ? cuts[extra.part_key as Part].no : cuts[extra.part_key as Part].en : t('Annet', 'Other')}</small><strong>{displayCutName(no ? extra.name_no : extra.name_en, lang)}</strong><span>{perKg ? `${t('ca.', 'approx.')} ${qty.toLocaleString(no ? 'nb-NO' : 'en-GB')} kg · ${money(extra.price_nok)}/kg` : `${qty} ${t('stk', 'pcs')}`}</span></div><div className={styles.addOnAction}><b>{money(extra.price_nok * qty)}</b>{unavailable ? <span>{t('Utsolgt', 'Sold out')}</span> : <button aria-pressed={chosen} aria-label={t(`${chosen ? 'Fjern' : 'Legg til'} ${extra.name_no}`, `${chosen ? 'Remove' : 'Add'} ${extra.name_en}`)} onClick={() => toggleExtra(extra.slug)}>{chosen ? <><Check size={15} />{t('Valgt', 'Selected')}</> : <><Plus size={15} />{t('Legg til', 'Add')}</>}</button>}</div></li>
+              })}</ul>}
+          </article>
+        </div>}
+        <details className={styles.cutExplorer}>
+          <summary>{t('Utforsk hvor stykkene sitter på grisen', 'Explore where each cut comes from')}<ChevronDown size={19} /></summary>
           <div className={styles.explorerBody}>
           <div className={styles.diagramColumn}>
             <div className={styles.diagram}>
@@ -316,47 +374,31 @@ export function PigSalesV3({ standalone = true }: { standalone?: boolean }) {
             </div>
           </aside>
         </div>
-        </div>
-        {selected && <div className={styles.catalogueOverview}>
-          <article className={styles.inTheBox}>
-            <header><small>{t('Inkludert i prisen', 'Included in the price')}</small><h3>{t('I din boks', 'In your box')}</h3><p>{name(selected)} · {selected.target_weight_kg} kg</p></header>
-            <ul>{selected.contents?.map((item, index) => <li key={`${cutKey(item)}-${index}`}><span><Check size={15} aria-hidden /><strong>{contentName(item)}</strong></span><small>{item.target_weight_kg ? `${t('ca.', 'approx.')} ${item.target_weight_kg.toLocaleString(no ? 'nb-NO' : 'en-GB')} kg` : t('Inkludert', 'Included')}</small></li>)}</ul>
-          </article>
-          <article className={styles.addOnCatalogue}>
-            <label className={styles.extraSort}>{t('Sorter tillegg', 'Sort extras')}<select value={extraSort} onChange={event => setExtraSort(event.target.value)}><option value="part">{t('Del av grisen', 'Part of the pig')}</option><option value="price-asc">{t('Laveste porsjonspris', 'Lowest portion price')}</option><option value="price-desc">{t('Høyeste porsjonspris', 'Highest portion price')}</option><option value="name">{t('Navn A–Å', 'Name A–Z')}</option></select></label>
-            <header><small>{t('Pris kommer i tillegg', 'Added to the box price')}</small><h3>{t('Dette kan du legge til', 'Available extras')}</h3><p>{t('Velg her. Valgene følger med videre til bestillingen.', 'Choose here. Your selections continue to checkout.')}</p></header>
-            {extrasError ? <div role="alert" className={styles.catalogueError}><p>{t('Tilleggene kunne ikke hentes.', 'Extras could not be loaded.')}</p><button onClick={() => setAttempt(value => value + 1)}>{t('Prøv igjen', 'Try again')}</button></div> :
-              <ul>{availableExtras.map(extra => {
-                const unavailable = soldOut || (typeof extra.stock_quantity === 'number' && extra.stock_quantity <= 0)
-                const chosen = selectedExtras.includes(extra.slug)
-                const qty = getDefaultExtraQuantity(extra)
-                return <li key={extra.id}><div><small>{extra.part_key && extra.part_key in cuts ? no ? cuts[extra.part_key as Part].no : cuts[extra.part_key as Part].en : t('Annet', 'Other')}</small><ExtraDetails title={displayCutName(no ? extra.name_no : extra.name_en, lang)} label={t('Om stykket', 'About this cut')} description={(no ? extra.description_premium_no || extra.description_no : extra.description_premium_en || extra.description_en) || t('Et ekstra stykke til boksen din.', 'An extra cut for your box.')} ideas={(extra.recipe_suggestions || []).map(idea => no ? idea.title_no : idea.title_en)} weight={extraWeight(extra)} price={money(extra.price_nok * qty)} /><span>{extraWeight(extra)}</span></div><div className={styles.addOnAction}><b>{money(extra.price_nok * qty)}</b>{unavailable ? <span>{t('Utsolgt', 'Sold out')}</span> : <button aria-pressed={chosen} aria-label={t(`${chosen ? 'Fjern' : 'Legg til'} ${extra.name_no}`, `${chosen ? 'Remove' : 'Add'} ${extra.name_en}`)} onClick={() => toggleExtra(extra.slug)}>{chosen ? <><Check size={15} />{t('Valgt', 'Selected')}</> : <><Plus size={15} />{t('Legg til', 'Add')}</>}</button>}</div></li>
-              })}</ul>}
-          </article>
-        </div>}
+        </details>
       </section>
 
       {selected && <section id="din-boks" className={styles.orderSummary} aria-labelledby="order-summary-title">
         <div><small>{t('Ditt valg', 'Your selection')}</small><h2 id="order-summary-title">{t('DIN BOKS. DINE TILLEGG.', 'YOUR BOX. YOUR EXTRAS.')}</h2><p>{t('Velg flere stykker i kartet over. Vi tar valgene med til bestillingen.', 'Choose more cuts in the chart above. We carry your choices into checkout.')}</p><a href="#stykningsdeler">{t('Utforsk flere stykker', 'Explore more cuts')}<ArrowUpRight size={18} /></a></div>
-        <div className={styles.summaryReceipt}><div className={styles.summaryRow}><span><strong>{name(selected)}</strong><small>{selected.target_weight_kg} kg</small></span><b>{money(selected.price_nok)}</b></div>
-          {chosenExtras.map(extra => <div key={extra.id} className={styles.summaryRow}><span><strong>{displayCutName(no ? extra.name_no : extra.name_en, lang)}</strong><small>{extraWeight(extra)}</small></span><b>{money(extra.price_nok * getDefaultExtraQuantity(extra))}</b><button aria-label={t(`Fjern ${extra.name_no}`, `Remove ${extra.name_en}`)} onClick={() => toggleExtra(extra.slug)}><X size={16} /></button></div>)}
+        <div className={styles.summaryReceipt}><div className={styles.summaryRow}><span><strong>{name(selected)}</strong><small>{selected.target_weight_kg} kg</small></span><b>{priceLabel(selected.price_nok)}</b></div>
+          {chosenExtras.map(extra => <div key={extra.id} className={styles.summaryRow}><span><strong>{displayCutName(no ? extra.name_no : extra.name_en, lang)}</strong><small>{getDefaultExtraQuantity(extra).toLocaleString(no ? 'nb-NO' : 'en-GB')} {extra.pricing_type === 'per_kg' ? 'kg' : t('enhet', 'unit')}</small></span><b>{money(extra.price_nok * getDefaultExtraQuantity(extra))}</b><button aria-label={t(`Fjern ${extra.name_no}`, `Remove ${extra.name_en}`)} onClick={() => toggleExtra(extra.slug)}><X size={16} /></button></div>)}
           {!chosenExtras.length && <p>{t('Ingen tillegg valgt. Du kan også velge tillegg og endre mengder i bestillingen.', 'No extras selected. You can also select extras and change quantities at checkout.')}</p>}
-          <div className={styles.summaryTotals} aria-live="polite"><span>{t('Boks og tillegg', 'Box and extras')}<strong>{money(total)}</strong></span><span>{t('Betales nå', 'Due now')}<strong>{money(Math.floor(selected.price_nok / 2))}</strong></span><span>{t('Rest før levering', 'Balance before delivery')}<strong>{money(total - Math.floor(selected.price_nok / 2))}</strong></span></div>
-          <small>{t('Eventuell levering kommer i tillegg. Lagerstatus, mengder og endelig pris bekreftes i bestillingen.', 'Any delivery charge is additional. Stock, quantities and final price are confirmed at checkout.')}</small>
+          {pickup && <div className={styles.summaryRow}><span><strong>{no ? pickup.label : pickup.labelEn}</strong><small>{no ? pickup.date : pickup.dateEn}</small></span><b>{deliveryFee ? money(deliveryFee) : t('Gratis', 'Free')}</b></div>}
+          <div className={styles.summaryTotals} aria-live="polite"><span>{t('Boks, tillegg og valgt transport', 'Box, extras and selected transport')}<strong>{money(total)}</strong></span><span>{t('Betales nå', 'Due now')}<strong>{money(boxDeposit(selected.price_nok))}</strong></span><span>{t('Rest før levering', 'Balance before delivery')}<strong>{money(total - boxDeposit(selected.price_nok))}</strong></span></div>
+          <small>{t('Valgt transport er inkludert i summen. Tillegg og transport betales med resten.', 'Selected transport is included in the total. Extras and transport are paid with the balance.')}</small>
           {soldOut ? <button disabled className={styles.primary}>{t('Utsolgt', 'Sold out')}</button> : <Link href={href} className={styles.primary}>{t('Gå videre med mitt valg', 'Continue with my selection')}<ArrowUpRight size={20} /></Link>}
         </div>
       </section>}
-      <section className={styles.deliveryOverview} aria-labelledby="delivery-overview-title"><div><small>{t('Henting 12.–15. desember', 'Pickup 12–15 December')}</small><h2 id="delivery-overview-title">{t('SLIK FÅR DU BOKSEN.', 'GETTING YOUR BOX.')}</h2></div><ul><li><strong>{t('Hent på gården', 'Collect at the farm')}</strong><span>Tinglemsvegen 91, Namdalseid</span></li><li><strong>{t('Henting i Trondheim', 'Collection in Trondheim')}</strong><span>Veita Mat AS, Jomfrugata 17B</span></li><li><strong>{t('Møtepunkt langs E6', 'E6 meeting point')}</strong><span>Stjørdal–Namsos</span></li></ul><p>{t('Restbetaling: 5. desember. Slakting: uke 50 (7.–13. desember). Henting: 12.–15. desember. Fersk henting på gården: lørdag 19. og søndag 20. desember. Hentested og eventuelle kostnader bekreftes i bestillingen.', 'Balance due: 5 December. Slaughter: week 50 (7–13 December). Pickup: 12–15 December. Fresh farm pickup: Saturday 19 and Sunday 20 December. Pickup location and any charges are confirmed at checkout.')}</p></section>
+      <section className={styles.deliveryOverview} aria-labelledby="delivery-overview-title"><div><small>{t('Trondheim 20. desember · E6 og Oslo 21. desember', 'Trondheim 20 December · E6 and Oslo 21 December')}</small><h2 id="delivery-overview-title">{t('SLIK FÅR DU BOKSEN.', 'GETTING YOUR BOX.')}</h2></div><ul>{Object.entries(pigDeliveries).map(([key, delivery]) => <li key={key}><strong>{no ? delivery.label : delivery.labelEn} · {delivery.fee ? `${delivery.fee} kr` : t('gratis', 'free')}</strong><span>{no ? delivery.date : delivery.dateEn}</span></li>)}</ul><p>{t('Tilgjengelige valg, eventuelle kostnader og detaljer bekreftes i bestillingen. Vi lover ikke levering utenfor disse områdene.', 'Available options, charges and details are confirmed at checkout. Delivery outside these areas is not promised.')}</p></section>
 
       <section id="livet-pa-garden" className={styles.story} aria-labelledby="story-title"><FarmGallery /><div className={styles.storyIdentity}><span>TINGLUM GÅRD</span><span>NAMDALSEID, TRØNDELAG</span></div><h2 id="story-title" data-reveal>{t('GOD MAT BEGYNNER', 'GOOD FOOD STARTS')}<br />{t('LENGE FØR MIDDAG.', 'LONG BEFORE DINNER.')}</h2><div className={styles.storyBottom}><p>{t('Mangalitsa er ullgrisen med krøllete pels og godt marmorert kjøtt. Fettet gir smak, og de forskjellige stykningsdelene gir deg mye å lage mat av.', 'Mangalitsa is the woolly pig with curly hair and richly marbled meat. Its fat adds flavour, and its varied cuts give you plenty to cook with.')}</p><p>{t('Vi setter sammen bokser som gjør det enkelt å bruke flere deler av dyret. Du kjenner opprinnelsen. Du ser innholdet. Og du velger middagen.', 'We put together boxes that make it easy to use more of the animal. You know the origin, you see the contents and you choose the dinner.')}</p><a href="#stykningsdeler">{t('Bli kjent med kjøttet', 'Get to know the meat')}<ArrowUpRight size={28} /></a></div></section>
 
       <section className={styles.kitchen} aria-labelledby="kitchen-title"><h2 id="kitchen-title" data-reveal>{t('FRA BOKS', 'FROM BOX')}<br /><span>{t('TIL BORD.', 'TO TABLE.')}</span></h2><div className={styles.recipeList}>{(['svinebog', 'kotelettkam', 'nakke'] as Part[]).map(key => <Link href={`/oppskrifter/${cuts[key].recipe}`} key={key} data-reveal><div className={styles.recipePhoto}><Image src={cuts[key].image} fill sizes="(max-width: 767px) 45vw, 17vw" alt={no ? cuts[key].no : cuts[key].en} /></div><div><small>{no ? cuts[key].methodNo : cuts[key].methodEn}</small><h3>{key === 'svinebog' ? t('Carnitas av bog', 'Shoulder carnitas') : key === 'kotelettkam' ? t('Koteletter med harissa', 'Harissa pork chops') : t('Nakkebiff', 'Collar steak')}</h3></div><ArrowUpRight size={26} /></Link>)}<Link href="/oppskrifter" className={styles.allRecipes}>{t('Flere oppskrifter fra gården', 'More recipes from the farm')}<ArrowUpRight size={19} /></Link></div></section>
 
-      <section id="sporsmal" className={styles.practical}><div><h2>{t('GREIT Å VITE.', 'GOOD TO KNOW.')}</h2><p>{t('Fra bestilling til boksen er klar.', 'From placing your order to receiving your box.')}</p><ol className={styles.steps}><li><span>1</span><div><strong>{t('Velg boksen', 'Choose your box')}</strong><p>{t('Se innhold og pris. Betal 50 %.', 'See contents and price. Pay 50%.')}</p></div></li><li><span>2</span><div><strong>{t('Restbetaling 5. desember', 'Balance due 5 December')}</strong><p>{t('Slakting 7.–13. desember (uke 50).', 'Slaughter 7–13 December (week 50).')}</p></div></li><li><span>3</span><div><strong>{t('Henting i desember', 'December pickup')}</strong><p>{t('Henting 12.–15. desember. Fersk henting lørdag 19. og søndag 20. desember.', 'Pickup 12–15 December. Fresh pickup Saturday 19 and Sunday 20 December.')}</p></div></li></ol></div><div className={styles.faq}>{faqs.map(([question, answer]) => <details key={question}><summary>{question}<ChevronDown size={21} /></summary><p>{answer}</p></details>)}<a href="mailto:post@tinglum.com">{t('Lurer du på noe annet? Kontakt oss.', 'Another question? Get in touch.')}<ArrowUpRight size={18} /></a></div></section>
+      <section id="sporsmal" className={styles.practical}><div><h2>{t('GREIT Å VITE.', 'GOOD TO KNOW.')}</h2><p>{t('Fra bestilling til boksen er klar.', 'From placing your order to receiving your box.')}</p><ol className={styles.steps}><li><span>1</span><div><strong>{t('Velg boksen', 'Choose your box')}</strong><p>{offerActive ? t('Se innhold og kundepris. Betal 35 % av ordinær bokspris.', 'See contents and your discounted price. Pay 35% of the regular box price.') : t('Se innhold og pris. Betal 50 %.', 'See contents and price. Pay 50%.')}</p></div></li><li><span>2</span><div><strong>{t('Vi gjør den klar', 'We prepare it')}</strong><p>{t('Du får beskjed før levering.', 'We notify you before delivery.')}</p></div></li><li><span>3</span><div><strong>{t('Betal resten', 'Pay the balance')}</strong><p>{t('Hent eller få levert som avtalt.', 'Collect or receive as arranged.')}</p></div></li></ol></div><div className={styles.faq}>{faqs.map(([question, answer]) => <details key={question}><summary>{question}<ChevronDown size={21} /></summary><p>{answer}</p></details>)}<a href="mailto:post@tinglum.com">{t('Lurer du på noe annet? Kontakt oss.', 'Another question? Get in touch.')}<ArrowUpRight size={18} /></a></div></section>
 
-      <section className={styles.final}><h2 data-reveal>{t('FYLL FRYSEREN.', 'FILL THE FREEZER.')}<br />{t('DEKK BORDET.', 'SET THE TABLE.')}</h2><div className={styles.finalAction}>{selected && <p>{name(selected)} · {selected.target_weight_kg} kg · {money(selected.price_nok)}</p>}<a href={selected && !soldOut ? href : '#bokser'} className={styles.primary}>{soldOut ? t('Se årets bokser', 'See this year’s boxes') : cta}<ArrowUpRight size={26} /></a>{selected && !soldOut && <small>{money(Math.floor(selected.price_nok / 2))} {t('ved bestilling', 'when ordering')}</small>}</div></section>
+      <section className={styles.final}><h2 data-reveal>{t('FYLL FRYSEREN.', 'FILL THE FREEZER.')}<br />{t('DEKK BORDET.', 'SET THE TABLE.')}</h2><div className={styles.finalAction}>{selected && <p>{name(selected)} · {selected.target_weight_kg} kg · {priceLabel(selected.price_nok)}</p>}<a href={selected && !soldOut ? href : '#bokser'} className={styles.primary}>{soldOut ? t('Se årets bokser', 'See this year’s boxes') : cta}<ArrowUpRight size={26} /></a>{selected && !soldOut && <small>{money(boxDeposit(selected.price_nok))} {t('ved bestilling', 'when ordering')}</small>}</div></section>
       {standalone && <footer className={styles.footer}><Link className={styles.footerBrand} href="/">TINGLUM GÅRD.</Link><p>Namdalseid · Trøndelag</p><div><Link href="/personvern">{t('Personvern', 'Privacy')}</Link><Link href="/vilkar">{t('Vilkår', 'Terms')}</Link><Link href="/min-side">{t('Min side', 'My account')}</Link></div></footer>}
-      {selected && showOrderBar && <div className={styles.mobileOrder}><span><strong>{name(selected)}</strong><small>{money(Math.floor(selected.price_nok / 2))} {t('nå', 'now')} · {selected.target_weight_kg} kg</small></span>{soldOut ? <span>{t('Utsolgt', 'Sold out')}</span> : <Link href={href}>{t('Bestill', 'Order')}<ArrowUpRight size={20} /></Link>}</div>}
+      {selected && showOrderBar && <div className={styles.mobileOrder}><span><strong>{name(selected)}</strong><small>{money(boxDeposit(selected.price_nok))} {t('nå', 'now')} · {selected.target_weight_kg} kg</small></span>{soldOut ? <span>{t('Utsolgt', 'Sold out')}</span> : <Link href={href}>{t('Bestill', 'Order')}<ArrowUpRight size={20} /></Link>}</div>}
     </div>
   )
 }

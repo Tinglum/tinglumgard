@@ -4,9 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { CheckCircle, Package, Clock, CreditCard, Share2, Copy, ExternalLink, XCircle, RefreshCcw, ShieldCheck, AlertTriangle } from "lucide-react";
+import { CheckCircle, Package, Clock, CreditCard, XCircle, RefreshCcw, ShieldCheck, AlertTriangle } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { OrderNextActions } from '@/components/farm/OrderNextActions';
+import { PigReferralTools } from '@/components/PigReferralTools';
+import { pigShareMessage, pigShareUrl } from '@/lib/pig-campaign';
 
 type PaymentStatus = "pending" | "completed" | "failed";
 
@@ -45,9 +47,6 @@ export default function ConfirmationPage() {
   const [pollCount, setPollCount] = useState(0);
   const [config, setConfig] = useState<ConfigData | null>(null);
   const [personalReferralCode, setPersonalReferralCode] = useState<string | null>(null);
-  const [referralCodeLoading, setReferralCodeLoading] = useState(false);
-  const [copiedReferralCode, setCopiedReferralCode] = useState(false);
-  const [copiedShareLink, setCopiedShareLink] = useState(false);
   const [showCompletedState, setShowCompletedState] = useState(false);
   const [resilience, setResilience] = useState<'idle' | 'checking' | 'retry' | 'manual_confirmed'>('idle');
   const [retrying, setRetrying] = useState(false);
@@ -144,17 +143,8 @@ export default function ConfirmationPage() {
   const depositPercentage = 50;
 
   const deliveryYear = config?.cutoff?.year || 2026;
-  const referralGivePercentage = 20;
+  const referralGivePercentage = 30;
   const referralEarnPercentage = 10;
-  const shareBaseUrl = "https://tinglumgård.no/bestill";
-  const shareUrl = useMemo(() => {
-    if (!personalReferralCode) return shareBaseUrl;
-    return `${shareBaseUrl}?code=${encodeURIComponent(personalReferralCode)}`;
-  }, [personalReferralCode]);
-  const shareMessage = useMemo(
-    () => copy.shareMessage.replace("{code}", personalReferralCode || ""),
-    [copy.shareMessage, personalReferralCode]
-  );
   const boxDisplay = useMemo(() => {
     if (!order) return '';
     const presetName =
@@ -214,7 +204,6 @@ export default function ConfirmationPage() {
   useEffect(() => {
     async function ensureReferralCode() {
       if (!order?.id) return;
-      setReferralCodeLoading(true);
 
       try {
         const response = await fetch("/api/referrals", {
@@ -243,8 +232,6 @@ export default function ConfirmationPage() {
         }
       } catch (error) {
         console.error("Failed to ensure referral code", error);
-      } finally {
-        setReferralCodeLoading(false);
       }
     }
 
@@ -277,38 +264,6 @@ export default function ConfirmationPage() {
   }
 
   const depositAmount = order.deposit_amount;
-
-  async function handleCopyReferralCode() {
-    if (!personalReferralCode) return;
-
-    try {
-      await navigator.clipboard.writeText(personalReferralCode);
-      setCopiedReferralCode(true);
-      setTimeout(() => setCopiedReferralCode(false), 1800);
-    } catch (error) {
-      console.error("Failed to copy referral code", error);
-    }
-  }
-
-  async function handleCopyShareLink() {
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setCopiedShareLink(true);
-      setTimeout(() => setCopiedShareLink(false), 1800);
-    } catch (error) {
-      console.error("Failed to copy share link", error);
-    }
-  }
-
-  function shareOnFacebook() {
-    const target = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
-    window.open(target, "_blank", "noopener,noreferrer");
-  }
-
-  function shareOnX() {
-    const target = `https://x.com/intent/tweet?text=${encodeURIComponent(shareMessage)}&url=${encodeURIComponent(shareUrl)}`;
-    window.open(target, "_blank", "noopener,noreferrer");
-  }
 
   return (
     <div className="min-h-screen bg-white py-20">
@@ -549,78 +504,7 @@ export default function ConfirmationPage() {
           </div>
         </div>
 
-        <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] mb-6 transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
-          <div className="flex items-center gap-3 mb-4">
-            <Share2 className="w-5 h-5 text-neutral-600" />
-            <h2 className="text-2xl font-light tracking-tight text-neutral-900">
-              {copy.shareTitle}
-            </h2>
-          </div>
-          <p className="text-sm font-light text-neutral-600 mb-6 leading-relaxed">
-            {copy.shareBody}
-          </p>
-
-          <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 mb-4">
-            <p className="text-sm font-medium text-neutral-900 mb-2">{copy.shareHowTitle}</p>
-            <ul className="space-y-1 text-sm font-light text-neutral-700">
-              <li>{copy.shareHowStep1.replace("{give}", String(referralGivePercentage))}</li>
-              <li>{copy.shareHowStep2.replace("{earn}", String(referralEarnPercentage))}</li>
-              <li>{copy.shareHowStep3.replace("{myPage}", copy.myPage)}</li>
-            </ul>
-          </div>
-
-          <p className="text-xs uppercase tracking-wide text-neutral-500 mb-2">{copy.shareCodeLabel}</p>
-          <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 mb-4 flex items-center justify-between gap-3">
-            <p className="text-sm font-light text-neutral-700 truncate">
-              {referralCodeLoading
-                ? copy.shareCodeLoading
-                : personalReferralCode || copy.shareCodeUnavailable}
-            </p>
-            <button
-              type="button"
-              onClick={handleCopyReferralCode}
-              disabled={!personalReferralCode}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-neutral-900 text-white text-xs font-semibold uppercase tracking-wide disabled:bg-neutral-300 disabled:cursor-not-allowed"
-            >
-              <Copy className="w-3.5 h-3.5" />
-              {copiedReferralCode ? copy.shareCopied : copy.shareCopyCode}
-            </button>
-          </div>
-
-          <p className="text-xs uppercase tracking-wide text-neutral-500 mb-2">{copy.shareLinkLabel}</p>
-          <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 mb-4 flex items-center justify-between gap-3">
-            <p className="text-sm font-light text-neutral-700 truncate">{shareUrl}</p>
-            <button
-              type="button"
-              onClick={handleCopyShareLink}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-neutral-900 text-white text-xs font-semibold uppercase tracking-wide"
-            >
-              <Copy className="w-3.5 h-3.5" />
-              {copiedShareLink
-                ? copy.shareCopied
-                : copy.shareCopy}
-            </button>
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={shareOnFacebook}
-              className="inline-flex items-center gap-2 px-4 py-3 rounded-xl border border-neutral-200 text-sm font-light text-neutral-900 hover:bg-neutral-50 transition-colors"
-            >
-              <ExternalLink className="w-4 h-4" />
-              Facebook
-            </button>
-            <button
-              type="button"
-              onClick={shareOnX}
-              className="inline-flex items-center gap-2 px-4 py-3 rounded-xl border border-neutral-200 text-sm font-light text-neutral-900 hover:bg-neutral-50 transition-colors"
-            >
-              <ExternalLink className="w-4 h-4" />
-              X
-            </button>
-          </div>
-        </div>
+        {personalReferralCode && paymentStatus === "completed" && <div className="mb-6"><PigReferralTools code={personalReferralCode} /></div>}
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8">
           <Link

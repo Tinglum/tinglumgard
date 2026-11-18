@@ -61,7 +61,7 @@ export function ReferralCodeInput({
         return;
       }
 
-      const discountAmount = Math.round(depositAmount * 0.20);
+      const discountAmount = Math.round(depositAmount * (Number(data.discount_percentage) / 100));
       const normalizedCode = codeValue.toUpperCase();
 
       setAppliedCode(normalizedCode);
@@ -107,7 +107,7 @@ export function ReferralCodeInput({
                 {t.referrals.codeActivated.replace('{code}', appliedCode)}
               </p>
               <p className="text-sm text-green-700">
-                {t.referrals.youGet20Off.replace('{amount}', Math.round(depositAmount * 0.20).toLocaleString(locale))}
+                {t.referrals.youGet20Off.replace('{amount}', Math.round(depositAmount * 0.30).toLocaleString(locale))}
               </p>
             </div>
           </div>
@@ -128,7 +128,7 @@ export function ReferralCodeInput({
         </label>
       </div>
       <p className="text-sm text-amber-700">
-        {t.referrals.youGet20Off.replace('{amount}', Math.round(depositAmount * 0.20).toLocaleString(locale))}
+        {t.referrals.youGet20Off.replace('{amount}', Math.round(depositAmount * 0.30).toLocaleString(locale))}
       </p>
 
       <div className="flex gap-2">

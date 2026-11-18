@@ -80,7 +80,7 @@ export async function POST(
     const creditApplied = Math.min(creditBalance, extrasTotal);
 
     // Use remainder amount minus applicable credit (credit applies to extras only)
-    const remainderAmount = Math.max(0, Math.round(order.remainder_amount - creditApplied));
+    let remainderAmount = Math.max(0, Math.round(order.remainder_amount - creditApplied));
 
     const remainderPayment = order.payments?.find(
       (p: any) => p.payment_type === 'remainder'
@@ -100,6 +100,14 @@ export async function POST(
     if (order.locked_at) {
       return NextResponse.json({ error: 'Order is locked' }, { status: 400 });
     }
+
+    const {data: referralSettlement,error: referralError} = await supabaseAdmin.rpc('redeem_paid_pig_referrals',{p_order_id:order.id});
+    if (referralError || !referralSettlement) {
+      logError('orders-remainder-referral-settlement',referralError);
+      return NextResponse.json({error:'Kunne ikke kontrollere vennebonusen. Prøv igjen før du betaler.'},{status:503});
+    }
+    remainderAmount=Math.max(0,Math.round(Number(referralSettlement.remainder_amount)-creditApplied));
+    if (referralSettlement.settled) return NextResponse.json({success:true,redirectUrl:'/min-side',amount:0,settledByReferral:true});
 
     // Create shorter reference (max 50 chars) using order number
     const shortReference = `REM-${order.order_number}`;

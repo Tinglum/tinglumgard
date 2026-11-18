@@ -142,7 +142,7 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onPayDepos
     hasLaterChangeBalance && remainderDueNok > 0
       ? (lang === 'en' ? 'Pay changes' : 'Betal endringer')
       : copy.payRemainder
-  const remainderDueDate = new Date('2026-12-05')
+  const remainderDueDate = new Date('2026-11-16')
   const today = useMemo(() => toDateOnly(new Date()), [])
   const dueDate = toDateOnly(remainderDueDate)
   const daysToDue = daysBetween(dueDate, today)
@@ -161,7 +161,7 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onPayDepos
       })
     : order.status === 'ready_for_pickup' || order.status === 'completed'
     ? copy.estimatedReadyNow
-    : order.fresh_delivery ? t.checkout.freshDelivery : copy.estimatedWeekRange
+    : copy.estimatedWeekRange
   const boxName = lang === 'no' ? order.display_box_name_no : order.display_box_name_en
   const boxLabel = boxName || t.common.defaultBoxName
   const baseOrderTotal = Math.max(0, Number(order.total_amount || 0) - extrasTotal)
@@ -271,6 +271,7 @@ export function PigOrderUnifiedCard({ order, canEdit, onPayRemainder, onPayDepos
     pickup_farm: copy.deliveryTypePickupFarm,
     pickup_e6: copy.deliveryTypePickupE6,
     delivery_trondheim: copy.deliveryTypePickupTrondheim,
+    pickup_oslo: 'Oslo · Majorstuen',
   }
 
   const ribbeChoiceLabels: Record<string, string> = {

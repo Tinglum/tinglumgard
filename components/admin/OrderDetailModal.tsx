@@ -104,6 +104,7 @@ export function OrderDetailModal({
     pickup_farm: copy.deliveryTypes.pickupFarm,
     pickup_e6: copy.deliveryTypes.pickupE6,
     delivery_trondheim: copy.deliveryTypes.deliveryTrondheim,
+    pickup_oslo: 'Oslo · Majorstuen',
     posten: copy.deliveryTypes.posten,
     farm_pickup: copy.deliveryTypes.farmPickup,
     e6_pickup: copy.deliveryTypes.e6Pickup,
