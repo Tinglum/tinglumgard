@@ -1,5 +1,5 @@
 export const PIG_CAMPAIGN_CODE = 'KUNDEJUL15';
-export const PIG_CAMPAIGN_SUBJECT = 'Lokalt kjøtt fra utegående ullgris: 15 % kunderabatt – spar opptil 65 % med venner';
+export const PIG_CAMPAIGN_SUBJECT = 'Ullgris til jul: 15 % kunderabatt til deg og familien';
 export const PIG_SITE = 'https://xn--tinglumgrd-85a.no';
 
 export function pigOfferPrice(price: number, friends = 0) {
