@@ -1,4 +1,4 @@
-import { pigDeliveries, pigShareLinks, type PigDelivery } from '@/lib/pig-campaign';
+import { pigDeliveries, PIG_DISPLAY_HOST, pigShareLinks, type PigDelivery } from '@/lib/pig-campaign';
 
 const escapeHtml = (value: string) => value.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
 export type PigCampaignPersonalization = { name?: string; purchaseSummary?: string; delivery: PigDelivery; referralCode?: string };
@@ -28,6 +28,7 @@ export function renderPigCampaignEmail(template: string, person: PigCampaignPers
     farm_video_url: 'https://xn--tinglumgrd-85a.no/#gardsfilm',
     referral_code: escapeHtml(referralCode),
     referral_url: escapeHtml(share?.url || destination.toString()),
+    referral_url_display: escapeHtml(referralCode ? `${PIG_DISPLAY_HOST}/?ref=${referralCode}` : PIG_DISPLAY_HOST),
     share_whatsapp_url: escapeHtml(share?.whatsapp || destination.toString()),
     share_facebook_url: escapeHtml(share?.facebook || destination.toString()),
     share_sms_url: escapeHtml(share?.smsHub || destination.toString()),

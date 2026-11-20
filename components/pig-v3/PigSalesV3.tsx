@@ -25,7 +25,7 @@ type Inventory = { boxesRemaining: number; isSoldOut: boolean; countsVerified?: 
 
 const boxNotes: Record<string, { no: string; en: string; image: string }> = {
   familieboks: { no: 'Til hverdager, helger og en velfylt fryser.', en: 'For weekdays, weekends and a well-stocked freezer.', image: '/recipes/bog-langtid.jpg' },
-  julespesial: { no: 'Ribba og resten av de gode julemiddagene.', en: 'Pork belly and all those Christmas dinners.', image: '/recipes/norsk-ribbe-uten-svor.png' },
+  julespesial: { no: 'Ribba og resten av de gode julemiddagene.', en: 'Pork belly and all those Christmas dinners.', image: '/recipes/julespesial-julemiddag.jpg' },
   'bbq-steakhouse': { no: 'For deg som helst fyrer opp grillen.', en: 'For those who would rather fire up the grill.', image: '/recipes/tomahawk-chimichurri.jpg' },
   'premium-cuts': { no: 'Små, ettertraktede stykker. Store muligheter.', en: 'Rare, sought-after cuts. Plenty of possibilities.', image: '/recipes/secreto-plancha.jpg' },
 }

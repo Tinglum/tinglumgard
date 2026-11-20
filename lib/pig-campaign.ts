@@ -2,8 +2,9 @@ export const PIG_CAMPAIGN_CODE = 'KUNDEJUL15';
 export const PIG_AMBASSADOR_PREFIX = 'JUL26';
 export const PIG_AMBASSADOR_REWARD_NOK = 250;
 export const PIG_AMBASSADOR_MAX_FRIENDS = 4;
-export const PIG_CAMPAIGN_SUBJECT = 'Ullgris til jul: 15 % kunderabatt til deg og familien';
+export const PIG_CAMPAIGN_SUBJECT = 'Ullgris til jul – 15 % rabatt til deg (og 250 kr per venn)';
 export const PIG_SITE = 'https://xn--tinglumgrd-85a.no';
+export const PIG_DISPLAY_HOST = 'tinglumgård.no';
 
 export function isPigAmbassadorCode(code?: string | null) {
   return Boolean(code && code.trim().toUpperCase().startsWith(PIG_AMBASSADOR_PREFIX));
@@ -23,6 +24,10 @@ export function pigShareUrl(code: string) {
   return `${PIG_SITE}/?ref=${encodeURIComponent(code)}#bokser`;
 }
 
+export function pigShareDisplayUrl(code: string) {
+  return `https://${PIG_DISPLAY_HOST}/?ref=${encodeURIComponent(code)}`;
+}
+
 export function pigShareHubUrl(code: string, via?: 'whatsapp' | 'facebook' | 'sms' | 'instagram') {
   const url = new URL(`${PIG_SITE}/del`);
   url.searchParams.set('code', code);
@@ -33,8 +38,8 @@ export function pigShareHubUrl(code: string, via?: 'whatsapp' | 'facebook' | 'sm
 export function pigShareMessage(code: string, lang = 'no') {
   if (isPigAmbassadorCode(code)) {
     return lang === 'no'
-      ? `Tips til julemiddagen! Jeg har handlet fra Tinglum Gård i år og fikk en lenke som gir deg 15 % rabatt på kjøttboks fra utegående ullgris (Mangalitsa). Levering i Trondheim 20. des og E6/Oslo 21. des. Se boksene her: ${pigShareUrl(code)}`
-      : `Christmas dinner tip! I've shopped from Tinglum Farm this year and got a link that gives you 15% off a free-range Mangalitsa pork box. Delivery in Trondheim 20 Dec and E6/Oslo 21 Dec. See the boxes here: ${pigShareUrl(code)}`;
+      ? `Tips til julemiddagen! Jeg har handlet fra Tinglum Gård i år og fikk en lenke som gir deg 15 % rabatt på kjøttboks fra utegående ullgris (Mangalitsa). Levering i Trondheim 20. des og E6/Oslo 21. des. Se boksene her: ${pigShareDisplayUrl(code)}`
+      : `Christmas dinner tip! I've shopped from Tinglum Farm this year and got a link that gives you 15% off a free-range Mangalitsa pork box. Delivery in Trondheim 20 Dec and E6/Oslo 21 Dec. See the boxes here: ${pigShareDisplayUrl(code)}`;
   }
   return lang === 'no'
     ? `Jeg har bestilt ullgris fra Tinglum Gård! Du får 15 % rabatt på din boks via lenken min. Når du bestiller og betaler forskuddet, får jeg også bonus på min boks. Se innhold, priser og hentevalg her: ${pigShareUrl(code)}`
