@@ -37,17 +37,26 @@ export function StepList({
   const router = useRouter()
   const [steps, setSteps] = React.useState(initial)
   const [error, setError] = React.useState<string | null>(null)
-  const [busy, setBusy] = React.useState<string | null>(null)
-  const [refreshing, startRefresh] = React.useTransition()
+  const [busyIds, setBusyIds] = React.useState<Record<string, boolean>>({})
+  const [markingAll, setMarkingAll] = React.useState(false)
   const [fenceStep, setFenceStep] = React.useState<Step | null>(null)
 
   React.useEffect(() => setSteps(initial), [initial])
 
   const doneCount = steps.filter((s) => s.done).length
 
+  async function syncStep(step: Step, next: boolean) {
+    const supabase = getTodoTwoBrowserClient()
+    return step.kind === 'series-step'
+      ? supabase.rpc('toggle_step', { p_task_id: taskId, p_step_id: step.id })
+      : supabase.rpc(next ? 'complete_task' : 'uncomplete_task', {
+          p_task_id: step.id,
+        })
+  }
+
   async function toggle(step: Step) {
-    if (busy || refreshing) return
-    setBusy(step.id)
+    if (busyIds[step.id] || markingAll) return
+    setBusyIds((prev) => ({ ...prev, [step.id]: true }))
     setError(null)
 
     const next = !step.done
@@ -56,29 +65,22 @@ export function StepList({
     )
 
     try {
-      const supabase = getTodoTwoBrowserClient()
-
-      const { error: rpcError } =
-        step.kind === 'series-step'
-          ? await supabase.rpc('toggle_step', { p_task_id: taskId, p_step_id: step.id })
-          : await supabase.rpc(next ? 'complete_task' : 'uncomplete_task', {
-              p_task_id: step.id,
-            })
-
+      const { error: rpcError } = await syncStep(step, next)
       if (rpcError) {
         setSteps((current) =>
           current.map((s) => (s.id === step.id ? { ...s, done: !next } : s))
         )
         setError(rpcError.message)
-        return
       }
-
-      startRefresh(() => router.refresh())
     } catch (caught) {
       setSteps((current) => current.map((s) => (s.id === step.id ? { ...s, done: !next } : s)))
       setError(caught instanceof Error ? caught.message : 'Could not save')
     } finally {
-      setBusy(null)
+      setBusyIds((prev) => {
+        const copy = { ...prev }
+        delete copy[step.id]
+        return copy
+      })
     }
   }
 
@@ -91,11 +93,32 @@ export function StepList({
   }
 
   async function markAll() {
-    for (const step of steps.filter((s) => !s.done)) {
-      // Sequential on purpose: the RPC toggles, so parallel calls on the same
-      // task can race each other into the wrong state.
-      // eslint-disable-next-line no-await-in-loop
-      await toggle(step)
+    const remaining = steps.filter((s) => !s.done)
+    if (remaining.length === 0 || markingAll) return
+    setMarkingAll(true)
+    setError(null)
+    // Optimistically tick all remaining steps immediately (0 ms UI feedback).
+    const remainingIds = new Set(remaining.map((s) => s.id))
+    setSteps((current) =>
+      current.map((s) => (remainingIds.has(s.id) ? { ...s, done: true } : s))
+    )
+    try {
+      for (const step of remaining) {
+        // Sequential RPCs avoid toggle races on the same task, without triggering
+        // full-page router.refresh() on every iteration.
+        // eslint-disable-next-line no-await-in-loop
+        const { error: rpcError } = await syncStep(step, true)
+        if (rpcError) {
+          setError(rpcError.message)
+          router.refresh()
+          return
+        }
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not save')
+      router.refresh()
+    } finally {
+      setMarkingAll(false)
     }
   }
 
@@ -114,8 +137,8 @@ export function StepList({
           Steps · {doneCount} of {steps.length}
         </p>
         {doneCount < steps.length && !taskDone ? (
-          <Button variant="ghost" size="sm" onClick={markAll} disabled={busy !== null || refreshing}>
-            Tick all
+          <Button variant="ghost" size="sm" onClick={markAll} disabled={markingAll}>
+            {markingAll ? 'Saving…' : 'Tick all'}
           </Button>
         ) : null}
       </div>
@@ -143,7 +166,7 @@ export function StepList({
             <button
               type="button"
               onClick={() => requestToggle(step)}
-              disabled={busy !== null || refreshing}
+              disabled={Boolean(busyIds[step.id]) || markingAll}
               aria-pressed={step.done}
               aria-label={step.done ? `Undo "${step.title}"` : `Tick "${step.title}"`}
               className={cn(

@@ -4,13 +4,12 @@ import * as React from 'react'
 import { useRouter } from 'next/navigation'
 
 import { Button } from '@/components/todotwo/ui/button'
-import { copy } from '@/lib/todotwo/copy'
 import { getTodoTwoBrowserClient } from '@/lib/todotwo/db-browser'
 import { FenceReadingDialog } from '@/components/todotwo/tasks/fence-reading-dialog'
 
 export function CompleteTaskButton({
   taskId,
-  done,
+  done: initialDone,
   requiresFeedCheck = false,
   requiresFenceReading = false,
 }: {
@@ -21,14 +20,18 @@ export function CompleteTaskButton({
   requiresFenceReading?: boolean
 }) {
   const router = useRouter()
+  const [done, setDone] = React.useState(initialDone)
   const [pending, setPending] = React.useState(false)
-  const [refreshing, startRefresh] = React.useTransition()
   const [error, setError] = React.useState<string | null>(null)
   // Only asked when completing (not un-completing) a task that requires it.
   const [asking, setAsking] = React.useState(false)
   const [askingFence, setAskingFence] = React.useState(false)
 
+  React.useEffect(() => setDone(initialDone), [initialDone])
+
   async function complete(hasEnoughFood: boolean | null) {
+    setDone(true)
+    setAsking(false)
     setPending(true)
     setError(null)
     try {
@@ -38,27 +41,29 @@ export function CompleteTaskButton({
         p_has_enough_food: hasEnoughFood,
       })
       if (rpcError) {
+        setDone(false)
         setError(rpcError.message)
         return
       }
-      setAsking(false)
-      startRefresh(() => router.refresh())
+      router.refresh()
     } finally {
       setPending(false)
     }
   }
 
   async function uncomplete() {
+    setDone(false)
     setPending(true)
     setError(null)
     try {
       const supabase = getTodoTwoBrowserClient()
       const { error: rpcError } = await supabase.rpc('uncomplete_task', { p_task_id: taskId })
       if (rpcError) {
+        setDone(true)
         setError(rpcError.message)
         return
       }
-      startRefresh(() => router.refresh())
+      router.refresh()
     } finally {
       setPending(false)
     }
@@ -127,12 +132,12 @@ export function CompleteTaskButton({
     <div className="flex flex-col gap-2">
       <Button
         onClick={toggle}
-        disabled={pending || refreshing}
+        disabled={pending}
         variant={done ? 'secondary' : 'primary'}
         size="lg"
         block
       >
-        {pending || refreshing ? copy.common.wait : done ? 'Mark as not done' : 'Complete task'}
+        {done ? 'Completed — tap to undo' : 'Complete task'}
       </Button>
       {error ? (
         <p role="alert" className="text-[13px] text-[var(--tt-danger)]">

@@ -50,22 +50,30 @@ export function TaskRow({
   task,
   timeLabel,
   onChanged,
+  onStatusChange,
   helpAction,
+  hideAssignee = false,
 }: {
   task: TaskRowData
   timeLabel: string | null
   onChanged?: () => void
+  /**
+   * When provided by an interactive workspace (Today, Week Plan), status
+   * updates flow directly into client state at 0 ms without triggering a
+   * blocking full-page router.refresh().
+   */
+  onStatusChange?: (taskId: string, nextDone: boolean) => void
   helpAction?: React.ReactNode
+  hideAssignee?: boolean
 }) {
   const router = useRouter()
   const [done, setDone] = React.useState(isFinished(task.status))
-  // Only a 'completed' task can be handed back. A verified one has been signed
-  // off, and an awaiting_verification one is waiting on somebody else — both
-  // show as done, but clicking either would only earn a "Task is not
-  // completed" from the database, so the control says so by being inert.
-  const [untickable] = React.useState(canUntick(task.status))
+  React.useEffect(() => {
+    setDone(isFinished(task.status))
+  }, [task.status])
+  const untickable = canUntick(task.status) || done
   const [pending, setPending] = React.useState(false)
-  const [refreshing, startRefresh] = React.useTransition()
+  const [, startRefresh] = React.useTransition()
   const [error, setError] = React.useState<string | null>(null)
   const [undoUntil, setUndoUntil] = React.useState<number | null>(null)
   // Evening animal routines: asked in place of the immediate optimistic tick.
@@ -85,6 +93,7 @@ export function TaskRow({
     setPending(true)
     setError(null)
     setAsking(false)
+    onStatusChange?.(task.id, next)
 
     try {
       const supabase = getTodoTwoBrowserClient()
@@ -94,16 +103,20 @@ export function TaskRow({
       )
 
       if (rpcError) {
-        setDone(!next) // roll back visibly rather than lying
+        setDone(!next)
+        onStatusChange?.(task.id, !next)
         setError(rpcError.message)
         return
       }
 
       setUndoUntil(next ? Date.now() + UNDO_WINDOW_MS : null)
       onChanged?.()
-      startRefresh(() => router.refresh())
+      if (!onStatusChange) {
+        startRefresh(() => router.refresh())
+      }
     } catch (caught) {
       setDone(!next)
+      onStatusChange?.(task.id, !next)
       setError(caught instanceof Error ? caught.message : 'Could not save')
     } finally {
       setPending(false)
@@ -111,21 +124,15 @@ export function TaskRow({
   }
 
   function toggle() {
-    if (pending || refreshing) return
+    if (pending) return
     if (done && !untickable) return
     const next = !done
 
-    // Un-completing, or a task that carries no feed-check obligation, goes
-    // straight through as before. Completing one that does requires the
-    // question answered first — no optimistic tick until then.
     if (next && task.requires_feed_check) {
       setAsking(true)
       return
     }
 
-    // Same rule as the feed check: the reading is the point of the job, so it
-    // is taken before the tick lands, not after. Without this the morning goat
-    // round was finished from this list every day and nothing was ever logged.
     if (next && taskNeedsFenceReading(task.title)) {
       setAskingFence(true)
       return
@@ -137,14 +144,14 @@ export function TaskRow({
   const row = (
     <li
       className={cn(
-        'flex items-start gap-3 border-b border-[var(--tt-rule)] py-3 last:border-b-0',
-        done && 'opacity-55'
+        'group flex items-start gap-3 border-b border-[var(--tt-rule)] py-3.5 transition-opacity last:border-b-0',
+        done && 'opacity-60'
       )}
     >
       <button
         type="button"
         onClick={toggle}
-        disabled={pending || refreshing || (done && !untickable)}
+        disabled={pending || (done && !untickable)}
         aria-pressed={done}
         aria-label={
           done
@@ -154,22 +161,23 @@ export function TaskRow({
             : `Complete "${task.title}"`
         }
         className={cn(
-          'mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-colors',
+          'mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-150 active:scale-90',
           done
             ? 'border-[var(--tt-accent)] bg-[var(--tt-accent)] text-[var(--tt-on-accent)]'
-            : 'border-[var(--tt-rule-strong)] hover:border-[var(--tt-accent)]'
+            : 'border-[var(--tt-rule-strong)] bg-[var(--tt-surface)] hover:border-[var(--tt-accent)] hover:bg-[var(--tt-accent-soft)]'
         )}
         style={!done ? { borderColor: PRIORITY_COLOR[task.priority] } : undefined}
       >
-        {done ? <Check className="h-4 w-4" aria-hidden="true" /> : null}
+        {done ? <Check className="h-3.5 w-3.5 stroke-[2.5]" aria-hidden="true" /> : null}
       </button>
 
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <Link href={`${TODOTWO_BASE}/tasks/${task.id}`}>
-            <span className={cn('text-[15px] leading-snug', done && 'line-through')}>
-              {task.title}
-            </span>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <Link
+            href={`${TODOTWO_BASE}/tasks/${task.id}`}
+            className="text-[14.5px] font-medium leading-snug text-[var(--tt-ink)] transition-colors hover:text-[var(--tt-accent)]"
+          >
+            <span className={cn(done && 'text-[var(--tt-ink-3)] line-through')}>{task.title}</span>
           </Link>
 
           <PriorityFlag priority={task.priority} />
@@ -181,9 +189,9 @@ export function TaskRow({
             />
           ) : null}
 
-          {task.assignee ? (
-            <span className="inline-flex items-center gap-1 text-[12px] text-[var(--tt-ink-3)]">
-              <Avatar person={task.assignee} size={20} />
+          {!hideAssignee && task.assignee ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-[var(--tt-surface-2)] py-0.5 pl-0.5 pr-2 text-[11.5px] font-medium text-[var(--tt-ink-2)]">
+              <Avatar person={task.assignee} size={18} />
               {task.assignee.preferredName?.trim() || task.assignee.fullName}
             </span>
           ) : null}
@@ -195,16 +203,20 @@ export function TaskRow({
           </p>
         ) : null}
 
-        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-[var(--tt-ink-3)]">
-          {timeLabel ? (
-            <span className="inline-flex items-center gap-1 tabular-nums">
-              <Clock className="h-3 w-3" aria-hidden="true" />
-              {timeLabel}
-            </span>
-          ) : null}
+        {timeLabel || task.estimated_minutes ? (
+          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[12px] text-[var(--tt-ink-3)]">
+            {timeLabel ? (
+              <span className="inline-flex items-center gap-1 rounded-md bg-[var(--tt-surface-2)] px-1.5 py-0.5 font-medium tabular-nums text-[var(--tt-ink-2)]">
+                <Clock className="h-3 w-3 text-[var(--tt-ink-3)]" aria-hidden="true" />
+                {timeLabel}
+              </span>
+            ) : null}
 
-          {task.estimated_minutes ? <span>{task.estimated_minutes} min</span> : null}
-        </div>
+            {task.estimated_minutes ? (
+              <span className="tabular-nums">{task.estimated_minutes} min</span>
+            ) : null}
+          </div>
+        ) : null}
 
         {helpAction ? <div className="mt-2">{helpAction}</div> : null}
 
@@ -215,22 +227,23 @@ export function TaskRow({
         ) : null}
       </div>
 
-      {/* Outside the Link: a button nested in an anchor is invalid, and tapping
-          undo would navigate to the task instead of undoing it. */}
       {showUndo ? (
         <button
           type="button"
           onClick={toggle}
-          className="mt-1 shrink-0 text-[12px] font-medium text-[var(--tt-accent)] underline underline-offset-2"
+          className="mt-0.5 shrink-0 rounded-lg bg-[var(--tt-accent-soft)] px-2.5 py-1 text-[12px] font-semibold text-[var(--tt-accent)] transition-colors hover:bg-[var(--tt-accent)] hover:text-[var(--tt-on-accent)]"
         >
           {copy.common.undo}
         </button>
       ) : null}
 
-      <ChevronRight
-        className="mt-1 h-4 w-4 shrink-0 text-[var(--tt-rule-strong)]"
-        aria-hidden="true"
-      />
+      <Link
+        href={`${TODOTWO_BASE}/tasks/${task.id}`}
+        aria-label={`Open ${task.title}`}
+        className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[var(--tt-ink-3)] opacity-60 transition-all group-hover:bg-[var(--tt-surface-2)] group-hover:opacity-100"
+      >
+        <ChevronRight className="h-4 w-4" aria-hidden="true" />
+      </Link>
     </li>
   )
 
@@ -265,23 +278,23 @@ export function TaskRow({
           <button
             type="button"
             onClick={() => void commit(true, true)}
-            disabled={pending || refreshing}
-            className="rounded-md bg-[var(--tt-accent)] px-3 py-1.5 text-[13px] font-medium text-[var(--tt-on-accent)] disabled:opacity-60"
+            disabled={pending}
+            className="rounded-xl bg-[var(--tt-accent)] px-3.5 py-1.5 text-[13px] font-medium text-[var(--tt-on-accent)] disabled:opacity-60"
           >
             Yes
           </button>
           <button
             type="button"
             onClick={() => void commit(true, false)}
-            disabled={pending || refreshing}
-            className="rounded-md border border-[var(--tt-rule-strong)] px-3 py-1.5 text-[13px] font-medium disabled:opacity-60"
+            disabled={pending}
+            className="rounded-xl border border-[var(--tt-rule-strong)] bg-[var(--tt-surface)] px-3.5 py-1.5 text-[13px] font-medium disabled:opacity-60"
           >
             No
           </button>
           <button
             type="button"
             onClick={() => setAsking(false)}
-            disabled={pending || refreshing}
+            disabled={pending}
             className="px-3 py-1.5 text-[13px] text-[var(--tt-ink-3)] hover:underline"
           >
             Cancel

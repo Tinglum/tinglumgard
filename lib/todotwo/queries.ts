@@ -57,27 +57,36 @@ export interface TaskRow {
  * the same array for convenience. Two round trips regardless of list size,
  * same shape as taskIdsAssignedTo below.
  */
+type RosterRow = {
+  id: string
+  full_name: string
+  preferred_name: string | null
+  photo_url: string | null
+}
+
 async function attachCurrentAssignees<T extends TaskRow>(
   db: ReturnType<typeof getTodoTwoClient>,
-  rows: T[]
+  rows: T[],
+  prefetchedPeople?: RosterRow[] | null
 ): Promise<T[]> {
   if (rows.length === 0) return rows
 
   const taskIds = rows.map((r) => r.id)
-  const [{ data: assignmentRows, error: assignmentsError }, { data: people, error: peopleError }] =
-    await Promise.all([
-      db
-        .from('task_assignments')
-        .select('task_id, person_id')
-        .in('task_id', taskIds)
-        // 'supervisor' rows are oversight, not ownership. Only an 'assignee' row
-        // means somebody actually has the task.
-        .eq('role', 'assignee')
-        .is('unassigned_at', null),
-      // The roster is intentionally farm-visible and small. Fetching it beside
-      // assignments removes one full network round trip from every task list.
-      db.from('people_roster').select('id, full_name, preferred_name, photo_url'),
-    ])
+  const assignmentsQuery = db
+    .from('task_assignments')
+    .select('task_id, person_id')
+    .in('task_id', taskIds)
+    // 'supervisor' rows are oversight, not ownership. Only an 'assignee' row
+    // means somebody actually has the task.
+    .eq('role', 'assignee')
+    .is('unassigned_at', null)
+
+  const [{ data: assignmentRows, error: assignmentsError }, peopleResult] = await Promise.all([
+    assignmentsQuery,
+    prefetchedPeople
+      ? Promise.resolve({ data: prefetchedPeople, error: null })
+      : db.from('people_roster').select('id, full_name, preferred_name, photo_url'),
+  ])
 
   if (assignmentsError) {
     throw new Error(`Could not load assignments: ${assignmentsError.message}`)
@@ -95,21 +104,10 @@ async function attachCurrentAssignees<T extends TaskRow>(
     return rows
   }
 
-  // people_roster, not people. A Workawayer can only read their own `people`
-  // row, so reading that table here left every task but their own showing no
-  // assignee at all. The roster view carries exactly these four columns and is
-  // readable by every member; contact details stay behind people's policies.
-  if (peopleError) throw new Error(`Could not load assignees: ${peopleError.message}`)
+  if (peopleResult.error) throw new Error(`Could not load assignees: ${peopleResult.error.message}`)
 
   const personById = new Map(
-    (
-      (people ?? []) as {
-        id: string
-        full_name: string
-        preferred_name: string | null
-        photo_url: string | null
-      }[]
-    ).map((p) => [
+    ((peopleResult.data ?? []) as RosterRow[]).map((p) => [
       p.id,
       { id: p.id, fullName: p.full_name, preferredName: p.preferred_name, photoUrl: p.photo_url },
     ])
@@ -182,68 +180,93 @@ export async function getToday(
   everyoneToday: TaskRow[]
   /** Still-open work older than the window above. Counted, not listed. */
   olderOpenCount: number
+  /** Series IDs that repeat daily, computed from the already-fetched task_series query. */
+  dailySeriesIds: string[]
 }> {
   const db = getTodoTwoClient()
   const floor = addFarmDays(today, -OVERDUE_WINDOW_DAYS)
   const week = farmWeek(today)
 
-  // Bounded date windows rather than one unbounded query. This used to select
-  // every task ever created with due_date <= today and filter in JavaScript:
-  // fine at a few hundred rows, but the farm now runs twice-daily animal
-  // routines, so it grows by several thousand a year. Include the rest of
-  // this week for project planning; future daily chores are filtered below.
-  const [openResult, doneResult, staleResult, recurringResult, projectResult] = await Promise.all([
-    db
-      .from('tasks_resolved')
-      .select(SELECT)
-      .is('parent_task_id', null)
-      .gte('due_date', floor)
-      .lte('due_date', week.end)
-      .in('status', OPEN_STATUSES),
-    db
-      .from('tasks_resolved')
-      .select(SELECT)
-      .is('parent_task_id', null)
-      .gte('due_date', week.start)
-      .lte('due_date', week.end)
-      .not('status', 'in', `(${OPEN_STATUSES.join(',')})`),
-    // Anything still open from before the window. Not listed — a job from
-    // three months ago is not today's work — but counted, because silently
-    // swallowing it would be worse than saying it is there.
-    db
-      .from('tasks_resolved')
-      .select('id', { count: 'exact', head: true })
-      .is('parent_task_id', null)
-      .lt('due_date', floor)
-      .in('status', OPEN_STATUSES),
-    db.from('task_series').select('id, rrule').eq('is_active', true).is('deleted_at', null),
-    db.from('projects').select('id').eq('slug', 'tinglum-farm-tasks').maybeSingle(),
-  ])
+  // Bounded date windows rather than one unbounded query. Fetch people_roster
+  // in the first parallel wave so attachCurrentAssignees does not pay a second
+  // roster round trip, and derive dailySeriesIds from recurringResult directly.
+  const [openResult, doneResult, staleResult, recurringResult, projectResult, rosterResult] =
+    await Promise.all([
+      db
+        .from('tasks_resolved')
+        .select(SELECT)
+        .is('parent_task_id', null)
+        .gte('due_date', floor)
+        .lte('due_date', week.end)
+        .in('status', OPEN_STATUSES),
+      db
+        .from('tasks_resolved')
+        .select(SELECT)
+        .is('parent_task_id', null)
+        .gte('due_date', week.start)
+        .lte('due_date', week.end)
+        .not('status', 'in', `(${OPEN_STATUSES.join(',')})`),
+      db
+        .from('tasks_resolved')
+        .select('id', { count: 'exact', head: true })
+        .is('parent_task_id', null)
+        .lt('due_date', floor)
+        .in('status', OPEN_STATUSES),
+      db.from('task_series').select('id, rrule').eq('is_active', true).is('deleted_at', null),
+      db.from('projects').select('id').eq('slug', 'tinglum-farm-tasks').maybeSingle(),
+      db.from('people_roster').select('id, full_name, preferred_name, photo_url'),
+    ])
 
-  const error = openResult.error ?? doneResult.error ?? recurringResult.error ?? projectResult.error
+  const error =
+    openResult.error ?? doneResult.error ?? recurringResult.error ?? projectResult.error
   if (error) throw new Error(`Could not load today: ${error.message}`)
   const farmProjectId = projectResult.data?.id
-  const projectTasks = farmProjectId ? await db.from('tasks_resolved').select(SELECT)
-    .eq('project_id', farmProjectId).is('parent_task_id', null).is('series_id', null)
-    .or(`status.in.(${OPEN_STATUSES.join(',')}),completed_at.gte.${farmDayStart(week.start).toISOString()}`) : { data: [], error: null }
-  if (projectTasks.error) throw new Error(`Could not load farm projects: ${projectTasks.error.message}`)
+  const projectTasks = farmProjectId
+    ? await db
+        .from('tasks_resolved')
+        .select(SELECT)
+        .eq('project_id', farmProjectId)
+        .is('parent_task_id', null)
+        .is('series_id', null)
+        .or(
+          `status.in.(${OPEN_STATUSES.join(',')}),completed_at.gte.${farmDayStart(week.start).toISOString()}`
+        )
+    : { data: [], error: null }
+  if (projectTasks.error) {
+    throw new Error(`Could not load farm projects: ${projectTasks.error.message}`)
+  }
 
-  // attachCurrentAssignees is the one assignee-lookup path in this module, and
-  // it answers both questions asked below: whose task is this, and does anyone
-  // have it at all (assignee === null).
-  const rows = await attachCurrentAssignees(db, Array.from(new Map([
-    ...((openResult.data ?? []) as unknown as TaskRow[]),
-    ...((doneResult.data ?? []) as unknown as TaskRow[]),
-    ...((projectTasks.data ?? []) as unknown as TaskRow[]),
-  ].map(task => [task.id, task])).values()))
+  const rows = await attachCurrentAssignees(
+    db,
+    Array.from(
+      new Map(
+        [
+          ...((openResult.data ?? []) as unknown as TaskRow[]),
+          ...((doneResult.data ?? []) as unknown as TaskRow[]),
+          ...((projectTasks.data ?? []) as unknown as TaskRow[]),
+        ].map((task) => [task.id, task])
+      ).values()
+    ),
+    rosterResult.error ? null : ((rosterResult.data ?? []) as RosterRow[])
+  )
+
+  const recurringRows = (recurringResult.data ?? []) as { id: string; rrule: string }[]
+  const dailySeriesIds = recurringRows
+    .filter((row) => /FREQ=DAILY/i.test(row.rrule))
+    .map((row) => row.id)
 
   const isOpen = (t: TaskRow) => OPEN_STATUSES.includes(t.status)
   const isMine = (t: TaskRow) => t.assignee?.id === personId
-  const dueToday = (t: TaskRow) => t.due_date === today || (!t.due_date && isProject(t) && (!t.planned_week || t.planned_week <= week.start))
-  const weeklyIds = weeklyProjectSeries((recurringResult.data ?? []) as { id: string; rrule: string }[])
+  const weeklyIds = weeklyProjectSeries(recurringRows)
   const isWeekly = (task: TaskRow) => Boolean(task.series_id && weeklyIds.has(task.series_id))
-  const isProject = (task: TaskRow) => Boolean(!task.series_id && farmProjectId && task.project_id === farmProjectId)
-  const dailyRows = rows.filter(task => (!isWeekly(task) && !isProject(task)) || Boolean(task.assignee))
+  const isProject = (task: TaskRow) =>
+    Boolean(!task.series_id && farmProjectId && task.project_id === farmProjectId)
+  const dueToday = (t: TaskRow) =>
+    t.due_date === today ||
+    (!t.due_date && isProject(t) && (!t.planned_week || t.planned_week <= week.start))
+  const dailyRows = rows.filter(
+    (task) => (!isWeekly(task) && !isProject(task)) || Boolean(task.assignee)
+  )
 
   return {
     weeklyTasks: sortTasks(rows.filter(isWeekly)),
@@ -252,15 +275,18 @@ export async function getToday(
       dailyRows.filter((t) => t.due_date && t.due_date < today && isOpen(t) && isMine(t))
     ),
     mine: sortTasks(dailyRows.filter((t) => dueToday(t) && isOpen(t) && isMine(t))),
-    // Regardless of who they would normally fall to: nobody holds these.
     unclaimed: sortTasks(dailyRows.filter((t) => dueToday(t) && isOpen(t) && !t.assignee)),
-    doneToday: sortTasks(dailyRows.filter((t) => !isOpen(t) && isMine(t) && (
-      t.completed_at ? formatFarm(new Date(t.completed_at), 'yyyy-MM-dd') === today : dueToday(t)
-    ))),
-    // Held by somebody — anybody. Unheld work is already the "up for grabs"
-    // list, and showing it twice would only make the screen longer.
+    doneToday: sortTasks(
+      dailyRows.filter(
+        (t) =>
+          !isOpen(t) &&
+          isMine(t) &&
+          (t.completed_at ? formatFarm(new Date(t.completed_at), 'yyyy-MM-dd') === today : dueToday(t))
+      )
+    ),
     everyoneToday: sortTasks(dailyRows.filter((t) => dueToday(t) && Boolean(t.assignee))),
     olderOpenCount: staleResult.count ?? 0,
+    dailySeriesIds,
   }
 }
 

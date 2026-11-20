@@ -5,8 +5,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/todotwo/ui/button'
 
 /**
- * The three states every TodoTwo view needs. Built once here so Phase 1 does
- * not reinvent them per screen.
+ * Shared elevated card and state primitives for TodoTwo views.
  */
 
 export function Surface({
@@ -17,13 +16,38 @@ export function Surface({
   return (
     <div
       className={cn(
-        'rounded-lg border border-[var(--tt-rule)] bg-[var(--tt-surface)]',
+        'rounded-2xl border border-[var(--tt-rule)] bg-[var(--tt-surface)] shadow-[var(--tt-shadow-sm)]',
         className
       )}
       {...props}
     >
       {children}
     </div>
+  )
+}
+
+export function StatusPill({
+  children,
+  tone = 'neutral',
+  className,
+}: {
+  children: React.ReactNode
+  tone?: 'neutral' | 'accent' | 'warn' | 'danger'
+  className?: string
+}) {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12px] font-medium leading-5',
+        tone === 'neutral' && 'bg-[var(--tt-surface-2)] text-[var(--tt-ink-2)]',
+        tone === 'accent' && 'bg-[var(--tt-accent-soft)] text-[var(--tt-accent)]',
+        tone === 'warn' && 'bg-[var(--tt-warn-soft)] text-[var(--tt-warn)]',
+        tone === 'danger' && 'bg-[var(--tt-danger-soft)] text-[var(--tt-danger)]',
+        className
+      )}
+    >
+      {children}
+    </span>
   )
 }
 
@@ -43,14 +67,16 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        'flex flex-col items-center gap-3 rounded-lg border border-dashed border-[var(--tt-rule-strong)] px-6 py-12 text-center',
+        'flex flex-col items-center gap-2.5 rounded-2xl border border-dashed border-[var(--tt-rule-strong)] bg-[var(--tt-surface)]/60 px-6 py-10 text-center',
         className
       )}
     >
-      <Icon className="h-6 w-6 text-[var(--tt-ink-3)]" aria-hidden="true" />
-      <p className="text-[15px] font-medium text-[var(--tt-ink)]">{title}</p>
+      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--tt-surface-2)] text-[var(--tt-ink-3)]">
+        <Icon className="h-5 w-5" aria-hidden="true" />
+      </div>
+      <p className="text-[15px] font-semibold text-[var(--tt-ink)]">{title}</p>
       {description ? (
-        <p className="max-w-[42ch] text-sm text-[var(--tt-ink-2)]">{description}</p>
+        <p className="max-w-[42ch] text-[13px] text-[var(--tt-ink-2)]">{description}</p>
       ) : null}
       {action ? (
         <Button variant="secondary" size="sm" onClick={action.onClick} className="mt-1">
@@ -76,13 +102,13 @@ export function ErrorState({
     <div
       role="alert"
       className={cn(
-        'flex flex-col items-start gap-2 rounded-lg border border-[var(--tt-danger)] bg-[var(--tt-danger-soft)] px-4 py-3',
+        'flex flex-col items-start gap-2 rounded-2xl border border-[var(--tt-danger-rule)] bg-[var(--tt-danger-soft)] px-4 py-3.5',
         className
       )}
     >
       <div className="flex items-center gap-2">
         <AlertTriangle className="h-4 w-4 text-[var(--tt-danger)]" aria-hidden="true" />
-        <p className="text-sm font-medium text-[var(--tt-ink)]">{title}</p>
+        <p className="text-sm font-semibold text-[var(--tt-ink)]">{title}</p>
       </div>
       {description ? (
         <p className="text-sm text-[var(--tt-ink-2)]">{description}</p>
@@ -99,7 +125,7 @@ export function ErrorState({
 export function SkeletonLine({ className }: { className?: string }) {
   return (
     <div
-      className={cn('h-4 animate-pulse rounded bg-[var(--tt-surface-2)]', className)}
+      className={cn('h-4 animate-pulse rounded-md bg-[var(--tt-surface-2)]', className)}
       aria-hidden="true"
     />
   )
