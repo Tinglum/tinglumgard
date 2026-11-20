@@ -67,6 +67,7 @@ export function PigSalesV3({ standalone = true }: { standalone?: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [offerQuery, setOfferQuery] = useState('')
   const [offerActive, setOfferActive] = useState(false)
+  const [offerIsReferral, setOfferIsReferral] = useState(false)
   const [offerError, setOfferError] = useState(false)
   const [pickupChoice, setPickupChoice] = useState<PigDelivery | null>(null)
   const pageRef = useRef<HTMLDivElement>(null)
@@ -88,7 +89,9 @@ export function PigSalesV3({ standalone = true }: { standalone?: boolean }) {
     const box = presets[0]
     if (!code || !box) return
     const controller = new AbortController()
+    const isRef = params.has('ref')
     setOfferActive(false)
+    setOfferIsReferral(isRef)
     setOfferError(false)
     fetch(params.has('ref') ? '/api/referrals/validate' : '/api/rebate-codes/validate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: controller.signal,
@@ -288,7 +291,7 @@ export function PigSalesV3({ standalone = true }: { standalone?: boolean }) {
 
       <section id="bokser" className={styles.boxSection} aria-labelledby="box-title">
         <div className={styles.boxHeading}><h2 id="box-title">{t('HVA HAR DU', 'WHAT ARE YOU')}<br /><span>{t('LYST PÅ?', 'IN THE MOOD FOR?')}</span></h2><p>{t('Hverdagsmat, julemiddag eller noe skikkelig godt på grillen. Finn din favoritt, og se akkurat hva du får.', 'Weeknight dinners, Christmas roasts or something special for the grill. Pick a favourite and see what is inside.')}</p></div>
-      {(offerActive || offerError) && <div className={styles.offerNotice} role="status">{offerActive ? <><strong>{t('Din kunderabatt (15 %) er aktiv.', 'Your 15% customer discount is active.')}</strong><span>{t('Prisene nedenfor inkluderer 15 % rabatt på boksen og trekkes automatisk fra forskuddet. Etter bestilling får du din egen delelenke: hver venn som bestiller gir deg 10 % ekstra bonus (opptil 5 venner).', 'The prices below include 15% off the box, deducted automatically from the deposit. After ordering you receive your personal share link: each friend who orders earns you 10% extra credit (up to 5 friends).')}</span>{pickup && <small>{t(`Valgt henting: ${pickup.label} (${pickup.date}) · kan endres under eller i kassen.`, `Selected collection: ${pickup.labelEn} (${pickup.dateEn}) · can be changed below or at checkout.`)}</small>}</> : <strong>{t('Vi kunne ikke bekrefte rabatten. Kontroller rabattkoden i bestillingen før du betaler.', 'We could not verify your discount. Check the code at checkout before paying.')}</strong>}</div>}
+      {(offerActive || offerError) && <div className={styles.offerNotice} role="status">{offerActive ? <><strong>{offerIsReferral ? t('Du er invitert av en venn – 15 % vennerabatt er aktiv.', 'Invited by a friend – your 15% friend discount is active.') : t('Din kunderabatt (15 %) er aktiv.', 'Your 15% customer discount is active.')}</strong><span>{t('Prisene nedenfor inkluderer 15 % rabatt på boksen og trekkes automatisk fra forskuddet. Etter bestilling får du din egen delelenke: hver venn som bestiller gir deg 10 % ekstra bonus (opptil 5 venner).', 'The prices below include 15% off the box, deducted automatically from the deposit. After ordering you receive your personal share link: each friend who orders earns you 10% extra credit (up to 5 friends).')}</span>{pickup && <small>{t(`Valgt henting: ${pickup.label} (${pickup.date}) · kan endres under eller i kassen.`, `Selected collection: ${pickup.labelEn} (${pickup.dateEn}) · can be changed below or at checkout.`)}</small>}</> : <strong>{t('Vi kunne ikke bekrefte rabatten. Kontroller rabattkoden i bestillingen før du betaler.', 'We could not verify your discount. Check the code at checkout before paying.')}</strong>}</div>}
         {loading ? <div className={styles.loading} role="status">{t('Henter årets bokser …', 'Loading this year’s boxes …')}</div> : error ? <div className={styles.error} role="alert"><p>{t('Vi fikk ikke hentet boksene. Prøv igjen.', 'We could not load the boxes. Please try again.')}</p><button className={styles.primary} onClick={() => setAttempt(value => value + 1)}>{t('Prøv igjen', 'Try again')}<ArrowRight size={18} /></button></div> : !presets.length ? <p className={styles.error}>{t('Det er ingen bokser tilgjengelig akkurat nå.', 'No boxes are available right now.')}</p> : <>
           <div id="v3-box-picker" tabIndex={-1} className={styles.boxTabs} role="group" aria-label={t('Velg kjøttboks', 'Choose a meat box')}>{presets.map(box => {
             const Icon = boxIcons[box.slug] || ChefHat

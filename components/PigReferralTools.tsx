@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { pigShareMessage, pigShareUrl } from '@/lib/pig-campaign';
+import { pigShareLinks } from '@/lib/pig-campaign';
 
 type Progress = { paidFriends: number; creditEarned: number; boxRemainder: number; originalBoxPrice: number };
 
@@ -28,13 +28,21 @@ export function PigReferralTools({ code }: { code: string }) {
     const interval = setInterval(load, 60_000);
     return () => { controller.abort(); clearInterval(interval); };
   }, [code, no]);
-  const message = pigShareMessage(code, lang);
-  const url = pigShareUrl(code);
+  const links = pigShareLinks(code, lang);
+  const message = links.message;
+  const url = links.url;
   const money = (amount: number) => `${amount.toLocaleString(no ? 'nb-NO' : 'en-GB')} kr`;
   if (loaded && !progress && !error) return <p className="rounded-xl border border-[#d5cebf] p-5 text-sm">{no ? 'Vennelenken blir klar når din første ullgriskasse og forskuddet er registrert.' : 'Your friend link becomes available when your first pork box and deposit are registered.'}</p>;
   async function copy() {
     try { await navigator.clipboard.writeText(message); setCopied(true); }
     catch { setError(no ? 'Kunne ikke kopiere. Marker og kopier teksten nedenfor.' : 'Could not copy. Select and copy the text below.'); }
+  }
+  async function shareInstagram() {
+    await copy();
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      try { await navigator.share({ title: 'Tinglum Gård', text: message, url }); return; } catch {}
+    }
+    window.open('https://www.instagram.com/', '_blank', 'noopener,noreferrer');
   }
   return <section aria-label={no ? 'Del med venner' : 'Share with friends'} className="rounded-xl border border-[#d5cebf] bg-[#faf6ed] p-5 text-[#292b24]">
     <h2 className="text-xl font-semibold">{no ? 'Gi 15 %. Få resten av boksen dekket.' : 'Give 15%. Earn credit towards your box.'}</h2>
@@ -47,10 +55,12 @@ export function PigReferralTools({ code }: { code: string }) {
       <p className="mt-1 text-xs">{no ? 'Transport og tillegg kommer utenom. Bare bestillinger med betalt forskudd teller.' : 'Transport and extras are additional. Only orders with paid deposits count.'}</p>
     </div>}
     {error && <p role="status" className="my-3 text-sm">{error}</p>}
-    <div className="mt-4 flex flex-wrap gap-3">
-      <button type="button" onClick={copy} className="min-h-[44px] bg-[#b53e2d] px-4 py-3 text-sm font-semibold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">{copied ? (no ? 'Kopiert!' : 'Copied!') : (no ? 'Kopier melding og lenke' : 'Copy message and link')}</button>
-      <a href={`sms:?body=${encodeURIComponent(message)}`} className="min-h-[44px] border border-[#d5cebf] px-4 py-3 text-sm font-semibold">SMS</a>
-      <a href={`https://wa.me/?text=${encodeURIComponent(message)}`} target="_blank" rel="noopener noreferrer" className="min-h-[44px] border border-[#d5cebf] px-4 py-3 text-sm font-semibold">WhatsApp</a>
+    <div className="mt-4 flex flex-wrap gap-2.5">
+      <a href={links.whatsapp} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[44px] items-center bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white">WhatsApp</a>
+      <a href={links.facebook} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[44px] items-center bg-[#1877F2] px-4 py-2.5 text-sm font-semibold text-white">Facebook</a>
+      <a href={links.sms} className="inline-flex min-h-[44px] items-center bg-[#292b24] px-4 py-2.5 text-sm font-semibold text-white">SMS</a>
+      <button type="button" onClick={shareInstagram} className="inline-flex min-h-[44px] items-center bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#F77737] px-4 py-2.5 text-sm font-semibold text-white">Instagram</button>
+      <button type="button" onClick={copy} className="inline-flex min-h-[44px] items-center border border-[#292b24] bg-white px-4 py-2.5 text-sm font-semibold text-[#292b24]">{copied ? (no ? 'Kopiert!' : 'Copied!') : (no ? 'Kopier' : 'Copy')}</button>
     </div>
     <p className="mt-4 select-all break-words text-sm leading-relaxed">{message}</p>
     <a href={url} className="mt-2 block break-all text-xs underline">{no ? 'Åpne delingslenken' : 'Open sharing link'}</a>

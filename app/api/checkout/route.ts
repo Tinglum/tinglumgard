@@ -6,7 +6,7 @@ import { logError } from '@/lib/logger';
 import { getFixedExtraQuantityForSlug } from '@/lib/extras/fixedQuantities';
 import { createOrderAccessToken } from '@/lib/auth/order-access';
 import { VIPPS_PENDING_EMAIL } from '@/lib/constants';
-import { PIG_CAMPAIGN_CODE } from '@/lib/pig-campaign';
+import { isPigAmbassadorCode, PIG_AMBASSADOR_REWARD_NOK, PIG_CAMPAIGN_CODE } from '@/lib/pig-campaign';
 import { validatePigCampaignOffer } from '@/lib/pig-campaign-server';
 export const dynamic = 'force-dynamic';
 
@@ -283,23 +283,32 @@ export async function POST(request: NextRequest) {
     let referralDiscountAmount = 0;
     let resolvedReferrerPhone: string | null = null;
     let referrerCreditAmount = 0;
+    let isAmbassadorReferral = false;
     if (referralCode) {
+      const normalizedReferralCode = referralCode.toUpperCase().trim();
+      isAmbassadorReferral = isPigAmbassadorCode(normalizedReferralCode);
       const { data: referralCodeRecord } = await supabaseAdmin
         .from('referral_codes')
         .select('id, is_active, owner_phone, owner_email, order_id')
-        .eq('code', referralCode)
+        .eq('code', normalizedReferralCode)
         .maybeSingle();
       const normalizedPhone = (value?: string | null) => String(value || '').replace(/\D/g,'').replace(/^(?:0047|47)(?=\d{8}$)/,'');
-      const selfReferral = Boolean(customerPhone && normalizedPhone(customerPhone) === normalizedPhone(referralCodeRecord?.owner_phone)) || Boolean(customerEmail && customerEmail.trim().toLowerCase() === String(referralCodeRecord?.owner_email || '').trim().toLowerCase());
-      if (!referralCodeRecord?.is_active || !referralCodeRecord.order_id || selfReferral) return NextResponse.json({error:'Ugyldig vennerabattkode'},{status:400});
-      const {data: validation,error: validationError} = await supabaseAdmin.rpc('validate_referral_code',{p_code:referralCode,p_phone:customerPhone||'',p_email:customerEmail||''});
+      const selfReferral = Boolean(customerPhone && referralCodeRecord?.owner_phone && normalizedPhone(customerPhone) === normalizedPhone(referralCodeRecord.owner_phone)) || Boolean(customerEmail && customerEmail.trim().toLowerCase() === String(referralCodeRecord?.owner_email || '').trim().toLowerCase());
+      if (!referralCodeRecord?.is_active || (!isAmbassadorReferral && !referralCodeRecord.order_id) || selfReferral) return NextResponse.json({error:'Ugyldig vennerabattkode'},{status:400});
+      const {data: validation,error: validationError} = await supabaseAdmin.rpc('validate_referral_code',{p_code:normalizedReferralCode,p_phone:customerPhone||'',p_email:customerEmail||''});
       if (validationError || !validation?.valid) return NextResponse.json({error:validation?.error || 'Kunne ikke kontrollere vennerabatten'},{status:400});
-      const {data: referrerOrder,error: referrerError} = await supabaseAdmin.from('orders').select('deposit_amount,referral_discount_amount,rebate_discount_amount,status').eq('id',referralCodeRecord.order_id).maybeSingle();
-      if (referrerError || !referrerOrder || ['draft','cancelled','forfeited'].includes(referrerOrder.status)) return NextResponse.json({error:'Vennelenken er ikke klar ennå'},{status:400});
-      referralDiscountAmount = Math.round(baseDepositAmount * .30);
-      resolvedReferrerPhone = referralCodeRecord.owner_phone;
-      const originalReferrerDeposit = Number(referrerOrder.deposit_amount) + Math.max(Number(referrerOrder.referral_discount_amount)||0,Number(referrerOrder.rebate_discount_amount)||0);
-      referrerCreditAmount = Math.round(originalReferrerDeposit * .20);
+      if (isAmbassadorReferral) {
+        referralDiscountAmount = Math.round(baseDepositAmount * .30);
+        resolvedReferrerPhone = referralCodeRecord.owner_phone;
+        referrerCreditAmount = PIG_AMBASSADOR_REWARD_NOK;
+      } else {
+        const {data: referrerOrder,error: referrerError} = await supabaseAdmin.from('orders').select('deposit_amount,referral_discount_amount,rebate_discount_amount,status').eq('id',referralCodeRecord.order_id).maybeSingle();
+        if (referrerError || !referrerOrder || ['draft','cancelled','forfeited'].includes(referrerOrder.status)) return NextResponse.json({error:'Vennelenken er ikke klar ennå'},{status:400});
+        referralDiscountAmount = Math.round(baseDepositAmount * .30);
+        resolvedReferrerPhone = referralCodeRecord.owner_phone;
+        const originalReferrerDeposit = Number(referrerOrder.deposit_amount) + Math.max(Number(referrerOrder.referral_discount_amount)||0,Number(referrerOrder.rebate_discount_amount)||0);
+        referrerCreditAmount = Math.round(originalReferrerDeposit * .20);
+      }
     }
 
     // Resolve rebate discount server-side — never trust client-supplied amount
@@ -427,7 +436,7 @@ export async function POST(request: NextRequest) {
               order_number: order.order_number,
               discount_percentage: 30.00,
               discount_amount_nok: referralDiscountAmount,
-              credit_percentage: 20.00,
+              credit_percentage: isAmbassadorReferral ? 0.00 : 20.00,
               credit_amount_nok: creditAmount,
               referee_name: customerName || 'Vipps kunde',
               referee_email: customerEmail,
