@@ -871,22 +871,24 @@ export function MobileCheckout(props: MobileCheckoutProps) {
 
               <div className="mt-4 border-t border-[#E4DED5] pt-3">
                 {(referralDiscount > 0 || rebateDiscount > 0) && (
-                  <div className="flex items-center justify-between text-xs text-[#0F6C6F]">
-                    <span>{mobileCopy.discount}</span>
-                    <span className="font-semibold">-{(referralDiscount || rebateDiscount).toLocaleString(locale)} {t.common.currency}</span>
+                  <div className="flex items-center justify-between text-xs text-[#b53e2d] font-medium">
+                    <span>{rebateDiscount > 0 && baseDepositTotal > 0 && Math.round((rebateDiscount / baseDepositTotal) * 100) === 30 ? (lang === 'no' ? 'Kunderabatt (15 %)' : 'Customer discount (15%)') : mobileCopy.discount}</span>
+                    <span className="font-semibold tabular-nums">-{(referralDiscount || rebateDiscount).toLocaleString(locale)} {t.common.currency}</span>
                   </div>
                 )}
                 <div className="mt-2 flex items-center justify-between text-base font-semibold">
                   <span>{t.common.total}</span>
-                  <span>{totalPrice.toLocaleString(locale)} {t.common.currency}</span>
+                  <span className="tabular-nums">{totalPrice.toLocaleString(locale)} {t.common.currency}</span>
                 </div>
                 <div className="mt-2 flex items-center justify-between text-xs text-[#5E5A50]">
-                  <span>{(referralDiscount || rebateDiscount) ? (lang === 'no' ? 'Forskudd etter rabatt' : 'Deposit after discount') : t.checkout.deposit50Percent}</span>
-                  <span>{depositTotal.toLocaleString(locale)} {t.common.currency}</span>
+                  <span>{(referralDiscount || rebateDiscount) ? (lang === 'no' ? 'Forskudd nå (etter rabatt)' : 'Deposit due now (after discount)') : t.checkout.deposit50Percent}</span>
+                  <span className="tabular-nums">
+                    {(referralDiscount || rebateDiscount) ? <><del className="text-neutral-400 mr-1">{baseDepositTotal.toLocaleString(locale)} {t.common.currency}</del><strong className="text-[#b53e2d]">{depositTotal.toLocaleString(locale)} {t.common.currency}</strong></> : <>{depositTotal.toLocaleString(locale)} {t.common.currency}</>}
+                  </span>
                 </div>
                 <div className="mt-1 flex items-center justify-between text-xs text-[#5E5A50]">
                   <span>{t.checkout.remainderBeforeDelivery}</span>
-                  <span>{remainderTotal.toLocaleString(locale)} {t.common.currency}</span>
+                  <span className="tabular-nums">{remainderTotal.toLocaleString(locale)} {t.common.currency}</span>
                 </div>
               </div>
             </div>

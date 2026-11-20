@@ -304,6 +304,7 @@ export default function ConfirmationPage() {
         </div>
 
         <OrderNextActions product="pig" orderId={order.id} orderNumber={order.order_number} />
+        {personalReferralCode && paymentStatus === "completed" && <div className="mb-6"><PigReferralTools code={personalReferralCode} /></div>}
         <div className="bg-white border border-neutral-200 rounded-xl p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] mb-6 transition-all duration-500 hover:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.12)]">
           <h2 className="text-3xl font-light tracking-tight text-neutral-900 mb-8">{copy.detailsTitle}</h2>
 
@@ -503,8 +504,6 @@ export default function ConfirmationPage() {
             </div>
           </div>
         </div>
-
-        {personalReferralCode && paymentStatus === "completed" && <div className="mb-6"><PigReferralTools code={personalReferralCode} /></div>}
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8">
           <Link

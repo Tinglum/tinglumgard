@@ -1804,24 +1804,41 @@ export default function CheckoutPage() {
 
                 {/* Total */}
                 <div className="space-y-4">
-                  <div className="flex justify-between text-sm">
-                    <span className="font-light text-neutral-600">{totalDiscount ? (lang === 'no' ? 'Forskudd etter rabatt' : 'Deposit after discount') : t.checkout.deposit50Percent}</span>
-                    <span className="font-light text-neutral-900 tabular-nums">{totalDiscount ? <><del>{baseDepositTotal.toLocaleString(locale)} {t.common.currency}</del> <strong style={{color:'#b53e2d'}}>{depositTotal.toLocaleString(locale)} {t.common.currency}</strong></> : <>{baseDepositTotal.toLocaleString(locale)} {t.common.currency}</>}</span>
-                  </div>
                   {referralData && (
-                    <div className="flex justify-between text-sm text-green-700">
-                      <span className="font-light">{t.checkout.friendDiscount}</span>
-                      <span className="font-light tabular-nums">-{referralDiscount.toLocaleString(locale)} {t.common.currency}</span>
+                    <div className="flex justify-between text-sm text-[#3a4827] font-medium">
+                      <span>{t.checkout.friendDiscount}</span>
+                      <span className="tabular-nums">-{referralDiscount.toLocaleString(locale)} {t.common.currency}</span>
                     </div>
                   )}
                   {rebateData && (
-                    <div className="flex justify-between text-sm text-blue-700">
-                      <span className="font-light">{t.checkout.discountCode}</span>
-                      <span className="font-light tabular-nums">-{rebateDiscount.toLocaleString(locale)} {t.common.currency}</span>
+                    <div className="flex justify-between text-sm text-[#b53e2d] font-medium">
+                      <span>{baseDepositTotal > 0 && Math.round((rebateDiscount / baseDepositTotal) * 100) === 30 ? (lang === 'no' ? 'Kunderabatt (15 %)' : 'Customer discount (15%)') : t.checkout.discountCode}</span>
+                      <span className="tabular-nums">-{rebateDiscount.toLocaleString(locale)} {t.common.currency}</span>
                     </div>
                   )}
+                  <div className="flex justify-between text-sm">
+                    <span className="font-light text-neutral-600">{totalDiscount ? (lang === 'no' ? 'Forskudd nå (etter rabatt)' : 'Deposit due now (after discount)') : t.checkout.deposit50Percent}</span>
+                    <span className="font-light text-neutral-900 tabular-nums">{totalDiscount ? <><del className="text-neutral-400 mr-1.5">{baseDepositTotal.toLocaleString(locale)} {t.common.currency}</del><strong style={{color:'#b53e2d'}}>{depositTotal.toLocaleString(locale)} {t.common.currency}</strong></> : <>{baseDepositTotal.toLocaleString(locale)} {t.common.currency}</>}</span>
+                  </div>
                   <div className="flex justify-between text-sm pb-4 border-b border-neutral-200">
-                    <span className="font-light text-neutral-600">{t.checkout.remainderBeforeDelivery}</span>
+                    <span className="font-light text-neutral-600">
+                      {t.checkout.remainderBeforeDelivery}
+                      {(deliveryType !== 'farm' || freshDelivery || extraProducts.length > 0) && (
+                        <span className="block text-xs text-neutral-500">
+                          {lang === 'no'
+                            ? extraProducts.length > 0 && deliveryType !== 'farm'
+                              ? 'inkl. henting og tillegg'
+                              : extraProducts.length > 0
+                                ? 'inkl. tillegg'
+                                : 'inkl. henting'
+                            : extraProducts.length > 0 && deliveryType !== 'farm'
+                              ? 'incl. collection & extras'
+                              : extraProducts.length > 0
+                                ? 'incl. extras'
+                                : 'incl. collection'}
+                        </span>
+                      )}
+                    </span>
                     <span className="font-light text-neutral-900 tabular-nums">{remainderTotal.toLocaleString(locale)} {t.common.currency}</span>
                   </div>
                   <div className="flex justify-between text-2xl">
