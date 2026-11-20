@@ -3,7 +3,6 @@
 import * as React from 'react'
 import Link from 'next/link'
 import {
-  BarChart3,
   CalendarDays,
   CalendarOff,
   Check,
@@ -82,7 +81,6 @@ export function WeekPlanner({
   const [scope, setScope] = React.useState<ScopeFilter>('everyone')
   const [selectedDate, setSelectedDate] = React.useState<string | 'all'>('all')
   const [editingTaskId, setEditingTaskId] = React.useState<string | null>(null)
-  const [showWorkload, setShowWorkload] = React.useState(true)
 
   // Auto-fill unclaimed preview/apply state (staff only)
   const [previewLoading, setPreviewLoading] = React.useState(false)
@@ -125,41 +123,6 @@ export function WeekPlanner({
     }
     return map
   }, [daysOffSchedule, showEveryoneDaysOff, currentPerson.id])
-
-  // Map personId -> days off in this 7-day window
-  const offDaysByPerson = React.useMemo(() => {
-    const windowDates = new Set(groups.map((g) => g.date))
-    const map = new Map<string, string[]>()
-    for (const entry of daysOffSchedule) {
-      if (!entry.off || !windowDates.has(entry.date)) continue
-      const list = map.get(entry.off.id) ?? []
-      list.push(formatFarm(farmDayStart(entry.date), 'EEE'))
-      map.set(entry.off.id, list)
-    }
-    return map
-  }, [daysOffSchedule, groups])
-
-  // Workload balance across the 7-day window
-  const workload = React.useMemo(() => {
-    const stats = new Map<
-      string,
-      { person: TaskAssignee; count: number; minutes: number; done: number }
-    >()
-    for (const g of groups) {
-      for (const task of g.tasks) {
-        if (!task.assignee) continue
-        const p = task.assignee
-        const entry = stats.get(p.id) ?? { person: p, count: 0, minutes: 0, done: 0 }
-        entry.count += 1
-        entry.minutes += task.estimated_minutes ?? 0
-        if (isFinished(task.status)) entry.done += 1
-        stats.set(p.id, entry)
-      }
-    }
-    const list = Array.from(stats.values()).sort((a, b) => b.count - a.count)
-    const maxCount = Math.max(1, ...list.map((x) => x.count))
-    return { list, maxCount }
-  }, [groups])
 
   const handleStatusChange = React.useCallback((taskId: string, nextDone: boolean) => {
     const nextStatus = nextDone ? 'completed' : 'assigned'
@@ -476,69 +439,6 @@ export function WeekPlanner({
               </Button>
             </div>
           </div>
-        </Surface>
-      ) : null}
-
-      {/* Workload Balance Bar per Person (#6) */}
-      {workload.list.length > 0 ? (
-        <Surface className="p-4">
-          <button
-            type="button"
-            onClick={() => setShowWorkload((v) => !v)}
-            className="flex w-full items-center justify-between text-left"
-          >
-            <span className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-[var(--tt-ink-3)]">
-              <BarChart3 className="h-3.5 w-3.5 text-[var(--tt-accent)]" aria-hidden="true" />
-              Weekly workload balance · {workload.list.length} people
-            </span>
-            <span className="text-[12px] font-medium text-[var(--tt-accent)]">
-              {showWorkload ? 'Hide' : 'Show'}
-            </span>
-          </button>
-
-          {showWorkload ? (
-            <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-              {workload.list.map(({ person, count, minutes }) => {
-                const pct = Math.round((count / workload.maxCount) * 100)
-                const offDays = offDaysByPerson.get(person.id) ?? []
-                const hours = minutes > 0 ? `${(minutes / 60).toFixed(1)}h` : null
-                return (
-                  <div
-                    key={person.id}
-                    className="flex items-center gap-2.5 rounded-xl bg-[var(--tt-ground)]/60 px-3 py-2"
-                  >
-                    <Avatar person={person} size={26} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <span className="truncate text-[13px] font-semibold text-[var(--tt-ink)]">
-                          {person.preferredName?.trim() || person.fullName}
-                          {offDays.length > 0 ? (
-                            <span className="ml-1.5 text-[11px] font-normal text-[var(--tt-ink-3)]">
-                              · off {offDays.join(', ')}
-                            </span>
-                          ) : null}
-                        </span>
-                        <span className="shrink-0 text-[12px] font-semibold tabular-nums text-[var(--tt-ink-2)]">
-                          {count}
-                          {hours ? (
-                            <span className="ml-1 font-normal text-[var(--tt-ink-3)]">
-                              ({hours})
-                            </span>
-                          ) : null}
-                        </span>
-                      </div>
-                      <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-[var(--tt-surface-2)]">
-                        <div
-                          className="h-full rounded-full bg-[var(--tt-accent)] transition-[width] duration-300"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          ) : null}
         </Surface>
       ) : null}
 
