@@ -47,6 +47,7 @@ export default async function UpcomingPage() {
         preferredName: principal.person.preferredName,
         photoUrl: principal.person.photoUrl,
       }}
+      farmPeople={todayData.farmPeople}
       canManageProjects={isStaff}
       initialGroups={visibleGroups}
       initialWeeklyTasks={todayData.weeklyTasks}

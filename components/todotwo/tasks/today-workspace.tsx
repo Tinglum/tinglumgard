@@ -11,8 +11,13 @@ import {
   Clock,
   FolderKanban,
   Hand,
+  Megaphone,
+  Moon,
   Sparkles,
+  Sun,
+  Sunrise,
   Users,
+  X,
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
@@ -29,12 +34,35 @@ import { plannedThisWeek, projectPlanLabel } from '@/lib/todotwo/domain/project-
 import { farmWeek } from '@/lib/todotwo/domain/weekly-projects'
 import { addFarmDays, farmDayStart, formatFarm } from '@/lib/todotwo/time'
 import { TODOTWO_BASE, todoTwoRoutes } from '@/lib/todotwo/routes'
-import type { TaskAssignee, TaskRow as QueryTaskRow } from '@/lib/todotwo/queries'
+import type { BarnNote, TaskAssignee, TaskRow as QueryTaskRow } from '@/lib/todotwo/queries'
 
 type WorkspaceTab = 'my-day' | 'team' | 'week'
+type DaySlot = 'morning' | 'afternoon' | 'evening' | 'anytime'
+
+const DAY_SLOTS: { key: DaySlot; label: string; range: string }[] = [
+  { key: 'morning', label: 'Morning', range: 'Before 12:00' },
+  { key: 'afternoon', label: 'Afternoon', range: '12:00–17:00' },
+  { key: 'evening', label: 'Evening', range: '17:00+' },
+  { key: 'anytime', label: 'Anytime', range: 'Flexible' },
+]
 
 function timeLabel(dueAt: string | null): string | null {
   return dueAt ? formatFarm(new Date(dueAt), 'HH:mm') : null
+}
+
+function slotForTask(dueAt: string | null): DaySlot {
+  if (!dueAt) return 'anytime'
+  const hour = Number(formatFarm(new Date(dueAt), 'HH'))
+  if (Number.isNaN(hour)) return 'anytime'
+  if (hour < 12) return 'morning'
+  if (hour < 17) return 'afternoon'
+  return 'evening'
+}
+
+function currentDaySlot(farmHour: number): DaySlot {
+  if (farmHour < 12) return 'morning'
+  if (farmHour < 17) return 'afternoon'
+  return 'evening'
 }
 
 function sortTasks(tasks: QueryTaskRow[]): QueryTaskRow[] {
@@ -51,8 +79,10 @@ export function TodayWorkspace({
   dateHeading,
   greeting,
   today,
+  farmHour,
   currentPerson,
   canManageProjects,
+  initialBarnNote,
   initialOverdue,
   initialMine,
   initialUnclaimed,
@@ -67,8 +97,10 @@ export function TodayWorkspace({
   dateHeading: string
   greeting: string
   today: string
+  farmHour: number
   currentPerson: TaskAssignee
   canManageProjects: boolean
+  initialBarnNote: BarnNote | null
   initialOverdue: QueryTaskRow[]
   initialMine: QueryTaskRow[]
   initialUnclaimed: QueryTaskRow[]
@@ -82,10 +114,18 @@ export function TodayWorkspace({
 }) {
   const [tab, setTab] = React.useState<WorkspaceTab>('my-day')
   const [teamFilter, setTeamFilter] = React.useState<'all' | 'active' | 'done'>('all')
+  const [teamSlot, setTeamSlot] = React.useState<'all' | DaySlot>('all')
   const [showDone, setShowDone] = React.useState(false)
+  const [barnNote, setBarnNote] = React.useState<BarnNote | null>(initialBarnNote)
+  const [composingNote, setComposingNote] = React.useState(false)
+  const [noteTitle, setNoteTitle] = React.useState('')
+  const [noteBody, setNoteBody] = React.useState('')
+  const [savingNote, setSavingNote] = React.useState(false)
   const [toast, setToast] = React.useState<{ message: string; tone?: 'accent' | 'danger' } | null>(
     null
   )
+
+  const nowSlot = currentDaySlot(farmHour)
 
   const [overdue, setOverdue] = React.useState<QueryTaskRow[]>(initialOverdue)
   const [mine, setMine] = React.useState<QueryTaskRow[]>(initialMine)
@@ -231,17 +271,75 @@ export function TodayWorkspace({
   const teamTotal = everyoneToday.length
   const teamDone = everyoneToday.filter((t) => isFinished(t.status)).length
 
-  // Group everyoneToday by person for the Farm Team view
+  // Instant Barn Note acknowledge & post (#10)
+  async function handleAckBarnNote() {
+    if (!barnNote) return
+    const current = barnNote
+    setBarnNote(null)
+    showToast('Barn note marked as read')
+
+    const { error } = await getTodoTwoBrowserClient()
+      .from('announcement_acknowledgements')
+      .upsert(
+        { announcement_id: current.id, person_id: currentPerson.id },
+        { onConflict: 'announcement_id,person_id' }
+      )
+    if (error) {
+      setBarnNote(current)
+      showToast('Could not dismiss note.', 'danger')
+    }
+  }
+
+  async function handlePostBarnNote(event: React.FormEvent) {
+    event.preventDefault()
+    const cleanTitle = noteTitle.trim()
+    if (!cleanTitle || savingNote) return
+    setSavingNote(true)
+    const cleanBody = noteBody.trim() || cleanTitle
+
+    const { data, error } = await getTodoTwoBrowserClient()
+      .from('announcements')
+      .insert({
+        title: cleanTitle,
+        body: cleanBody,
+        urgency: 'important',
+        author_person_id: currentPerson.id,
+        published_at: new Date().toISOString(),
+      })
+      .select('id, published_at')
+      .single()
+
+    setSavingNote(false)
+    if (error || !data) {
+      showToast('Could not post barn note.', 'danger')
+      return
+    }
+
+    setBarnNote({
+      id: data.id as string,
+      title: cleanTitle,
+      body: cleanBody,
+      urgency: 'important',
+      publishedAt: (data.published_at as string) ?? new Date().toISOString(),
+      authorName: currentPerson.preferredName?.trim() || currentPerson.fullName,
+    })
+    setNoteTitle('')
+    setNoteBody('')
+    setComposingNote(false)
+    showToast('Barn note pinned for the team')
+  }
+
+  // Group everyoneToday by person for the Farm Team view (with optional time-of-day filter)
   const teamGroups = React.useMemo(() => {
     const map = new Map<string, { person: TaskAssignee; tasks: QueryTaskRow[] }>()
     for (const task of everyoneToday) {
       const person = task.assignee
       if (!person) continue
+      if (teamSlot !== 'all' && slotForTask(task.due_at) !== teamSlot) continue
       const existing = map.get(person.id)
       if (existing) existing.tasks.push(task)
       else map.set(person.id, { person, tasks: [task] })
     }
-    // Put current user first, then people with remaining work, then finished
     return Array.from(map.values()).sort((a, b) => {
       if (a.person.id === currentPerson.id) return -1
       if (b.person.id === currentPerson.id) return 1
@@ -249,7 +347,22 @@ export function TodayWorkspace({
       const bRem = b.tasks.filter((t) => !isFinished(t.status)).length
       return bRem - aRem
     })
-  }, [everyoneToday, currentPerson.id])
+  }, [everyoneToday, currentPerson.id, teamSlot])
+
+  // Group My Day chores into Morning / Afternoon / Evening / Anytime (#8)
+  const mineBySlot = React.useMemo(() => {
+    const map = new Map<DaySlot, QueryTaskRow[]>()
+    for (const task of mine) {
+      const slot = slotForTask(task.due_at)
+      const list = map.get(slot) ?? []
+      list.push(task)
+      map.set(slot, list)
+    }
+    return DAY_SLOTS.map((slot) => ({
+      ...slot,
+      tasks: map.get(slot.key) ?? [],
+    })).filter((g) => g.tasks.length > 0)
+  }, [mine])
 
   const filteredTeamGroups = React.useMemo(() => {
     if (teamFilter === 'all') return teamGroups
@@ -280,14 +393,110 @@ export function TodayWorkspace({
             <h1 className="mt-0.5 text-[26px] leading-tight text-[var(--tt-ink)]">{greeting}</h1>
           </div>
 
-          <Link
-            href={todoTwoRoutes.upcoming()}
-            className="hidden items-center gap-1.5 rounded-xl border border-[var(--tt-rule-strong)] bg-[var(--tt-surface)] px-3.5 py-2 text-[13px] font-medium text-[var(--tt-ink)] shadow-[var(--tt-shadow-xs)] transition-colors hover:bg-[var(--tt-surface-2)] sm:inline-flex"
-          >
-            <CalendarRange className="h-4 w-4 text-[var(--tt-accent)]" aria-hidden="true" />
-            Plan week
-          </Link>
+          <div className="flex items-center gap-2">
+            {canManageProjects ? (
+              <button
+                type="button"
+                onClick={() => setComposingNote((v) => !v)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--tt-rule-strong)] bg-[var(--tt-surface)] px-3 py-2 text-[13px] font-medium text-[var(--tt-ink-2)] shadow-[var(--tt-shadow-xs)] transition-colors hover:bg-[var(--tt-surface-2)] hover:text-[var(--tt-ink)]"
+              >
+                <Megaphone className="h-3.5 w-3.5 text-[var(--tt-accent)]" aria-hidden="true" />
+                Barn note
+              </button>
+            ) : null}
+            <Link
+              href={todoTwoRoutes.upcoming()}
+              className="hidden items-center gap-1.5 rounded-xl border border-[var(--tt-rule-strong)] bg-[var(--tt-surface)] px-3.5 py-2 text-[13px] font-medium text-[var(--tt-ink)] shadow-[var(--tt-shadow-xs)] transition-colors hover:bg-[var(--tt-surface-2)] sm:inline-flex"
+            >
+              <CalendarRange className="h-4 w-4 text-[var(--tt-accent)]" aria-hidden="true" />
+              Plan week
+            </Link>
+          </div>
         </div>
+
+        {/* Quick Barn Note Composer (staff) */}
+        {composingNote && canManageProjects ? (
+          <Surface className="border-[var(--tt-accent-ring)] p-3.5">
+            <form onSubmit={(e) => void handlePostBarnNote(e)} className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <p className="text-[12px] font-semibold uppercase tracking-[0.1em] text-[var(--tt-accent)]">
+                  Pin a barn note for today
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setComposingNote(false)}
+                  aria-label="Close barn note"
+                  className="rounded-lg p-1 text-[var(--tt-ink-3)] hover:bg-[var(--tt-surface-2)]"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <input
+                value={noteTitle}
+                onChange={(e) => setNoteTitle(e.target.value)}
+                placeholder="e.g., Dinner at 19:00 · North pasture gate battery low"
+                maxLength={200}
+                required
+                className="min-h-[40px] w-full rounded-xl border border-[var(--tt-rule-strong)] bg-[var(--tt-ground)]/60 px-3 text-[14px] text-[var(--tt-ink)] focus:border-[var(--tt-accent)] focus:bg-[var(--tt-surface)] focus:outline-none"
+              />
+              <div className="flex items-center gap-2">
+                <input
+                  value={noteBody}
+                  onChange={(e) => setNoteBody(e.target.value)}
+                  placeholder="Optional extra details…"
+                  maxLength={500}
+                  className="min-h-[36px] flex-1 rounded-xl border border-[var(--tt-rule)] bg-[var(--tt-ground)]/40 px-3 text-[13px] text-[var(--tt-ink)] focus:border-[var(--tt-accent)] focus:bg-[var(--tt-surface)] focus:outline-none"
+                />
+                <Button type="submit" size="sm" disabled={savingNote || !noteTitle.trim()}>
+                  {savingNote ? 'Pinning…' : 'Pin note'}
+                </Button>
+              </div>
+            </form>
+          </Surface>
+        ) : null}
+
+        {/* Active Pinned Barn Note Banner (#10) */}
+        {barnNote ? (
+          <Surface
+            className={cn(
+              'flex items-start justify-between gap-3 p-3.5 sm:px-4',
+              barnNote.urgency === 'urgent'
+                ? 'border-[var(--tt-danger-rule)] bg-[var(--tt-danger-soft)]/55'
+                : 'border-[var(--tt-accent-ring)] bg-[var(--tt-accent-soft)]/55'
+            )}
+          >
+            <div className="flex min-w-0 items-start gap-2.5">
+              <Megaphone
+                className={cn(
+                  'mt-0.5 h-4 w-4 shrink-0',
+                  barnNote.urgency === 'urgent'
+                    ? 'text-[var(--tt-danger)]'
+                    : 'text-[var(--tt-accent)]'
+                )}
+                aria-hidden="true"
+              />
+              <div className="min-w-0">
+                <p className="text-[14px] font-semibold text-[var(--tt-ink)]">{barnNote.title}</p>
+                {barnNote.body && barnNote.body !== barnNote.title ? (
+                  <p className="mt-0.5 text-[13px] text-[var(--tt-ink-2)]">{barnNote.body}</p>
+                ) : null}
+                {barnNote.authorName ? (
+                  <p className="mt-0.5 text-[11.5px] text-[var(--tt-ink-3)]">
+                    Note from {barnNote.authorName}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => void handleAckBarnNote()}
+              className="shrink-0"
+            >
+              Got it
+            </Button>
+          </Surface>
+        ) : null}
 
         {/* Live Status Summary Strip */}
         <div className="flex flex-wrap items-center gap-2">
@@ -447,6 +656,57 @@ export function TodayWorkspace({
                 }
                 className="mt-2 border-0 bg-transparent py-7"
               />
+            ) : mineBySlot.length > 1 ? (
+              <div className="flex flex-col gap-4 pt-1">
+                {mineBySlot.map((slotGroup) => {
+                  const isNow = slotGroup.key === nowSlot
+                  const SlotIcon =
+                    slotGroup.key === 'morning'
+                      ? Sunrise
+                      : slotGroup.key === 'afternoon'
+                        ? Sun
+                        : slotGroup.key === 'evening'
+                          ? Moon
+                          : Clock
+                  return (
+                    <div key={slotGroup.key} className="flex flex-col">
+                      <div className="mb-1 flex items-center gap-2">
+                        <SlotIcon
+                          className={cn(
+                            'h-3.5 w-3.5',
+                            isNow ? 'text-[var(--tt-accent)]' : 'text-[var(--tt-ink-3)]'
+                          )}
+                          aria-hidden="true"
+                        />
+                        <span className="text-[12px] font-semibold text-[var(--tt-ink-2)]">
+                          {slotGroup.label}
+                        </span>
+                        <span className="text-[11.5px] text-[var(--tt-ink-3)]">
+                          {slotGroup.range}
+                        </span>
+                        {isNow ? <StatusPill tone="accent">Now</StatusPill> : null}
+                      </div>
+                      <ul className="list-none">
+                        {slotGroup.tasks.map((task) => (
+                          <TaskRow
+                            key={task.id}
+                            task={task}
+                            timeLabel={timeLabel(task.due_at)}
+                            hideAssignee
+                            onStatusChange={handleStatusChange}
+                            helpAction={
+                              <AskForHelp
+                                taskId={task.id}
+                                alreadyAsked={askedTaskIds.has(task.id)}
+                              />
+                            }
+                          />
+                        ))}
+                      </ul>
+                    </div>
+                  )
+                })}
+              </div>
             ) : (
               <ul className="list-none">
                 {mine.map((task) => (
@@ -583,38 +843,67 @@ export function TodayWorkspace({
       {/* TAB 2: FARM TEAM ("Who is doing what today?") */}
       {tab === 'team' ? (
         <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5">
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                {(
+                  [
+                    { key: 'all', label: `Everyone (${teamGroups.length})` },
+                    { key: 'active', label: 'In progress' },
+                    { key: 'done', label: 'All done' },
+                  ] as const
+                ).map((f) => (
+                  <button
+                    key={f.key}
+                    type="button"
+                    onClick={() => setTeamFilter(f.key)}
+                    className={cn(
+                      'rounded-full px-3 py-1 text-[12.5px] font-medium transition-colors',
+                      teamFilter === f.key
+                        ? 'bg-[var(--tt-accent)] text-[var(--tt-on-accent)]'
+                        : 'border border-[var(--tt-rule)] bg-[var(--tt-surface)] text-[var(--tt-ink-2)] hover:text-[var(--tt-ink)]'
+                    )}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+
+              <Link
+                href={todoTwoRoutes.roster()}
+                className="inline-flex items-center gap-1 text-[13px] font-medium text-[var(--tt-accent)] hover:underline"
+              >
+                Two-day roster
+                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </Link>
+            </div>
+
+            {/* Morning / Afternoon / Evening filter (#8) */}
+            <div className="flex flex-wrap items-center gap-1.5">
               {(
                 [
-                  { key: 'all', label: `Everyone (${teamGroups.length})` },
-                  { key: 'active', label: 'In progress' },
-                  { key: 'done', label: 'All done' },
+                  { key: 'all', label: 'All day' },
+                  { key: 'morning', label: 'Morning' },
+                  { key: 'afternoon', label: 'Afternoon' },
+                  { key: 'evening', label: 'Evening' },
                 ] as const
-              ).map((f) => (
+              ).map((s) => (
                 <button
-                  key={f.key}
+                  key={s.key}
                   type="button"
-                  onClick={() => setTeamFilter(f.key)}
+                  onClick={() => setTeamSlot(s.key)}
                   className={cn(
-                    'rounded-full px-3 py-1 text-[12.5px] font-medium transition-colors',
-                    teamFilter === f.key
-                      ? 'bg-[var(--tt-accent)] text-[var(--tt-on-accent)]'
-                      : 'border border-[var(--tt-rule)] bg-[var(--tt-surface)] text-[var(--tt-ink-2)] hover:text-[var(--tt-ink)]'
+                    'rounded-full px-2.5 py-0.5 text-[12px] font-medium transition-colors',
+                    teamSlot === s.key
+                      ? 'bg-[var(--tt-accent-soft)] font-semibold text-[var(--tt-accent)]'
+                      : 'text-[var(--tt-ink-3)] hover:bg-[var(--tt-surface)] hover:text-[var(--tt-ink)]'
                   )}
                 >
-                  {f.label}
+                  {s.label}
+                  {s.key === nowSlot ? ' · now' : ''}
                 </button>
               ))}
             </div>
-
-            <Link
-              href={todoTwoRoutes.roster()}
-              className="inline-flex items-center gap-1 text-[13px] font-medium text-[var(--tt-accent)] hover:underline"
-            >
-              Two-day roster
-              <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-            </Link>
           </div>
 
           {unclaimed.length > 0 ? (

@@ -13,7 +13,7 @@ import { OfferTaskButton } from '@/components/todotwo/tasks/offer-task-button'
 import { PrioritySelect } from '@/components/todotwo/tasks/priority-select'
 import { PrivateNote } from '@/components/todotwo/tasks/private-note'
 import { AdminAssignmentControl } from '@/components/todotwo/tasks/admin-assignment-control'
-import { Surface } from '@/components/todotwo/ui/states'
+import { StatusPill, Surface } from '@/components/todotwo/ui/states'
 import { getTodoTwoClient } from '@/lib/todotwo/db'
 import { taskNeedsFenceReading } from '@/lib/todotwo/domain/fence'
 import { requireTodoTwoUser } from '@/lib/todotwo/auth'
@@ -78,60 +78,75 @@ export default async function TaskDetailPage({ params }: { params: { id: string 
     : []
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
+    <div className="tt-fade-up mx-auto flex w-full max-w-2xl flex-col gap-5">
       <Link
         href={TODOTWO_BASE}
-        className="inline-flex items-center gap-1.5 text-[13px] text-[var(--tt-ink-2)] hover:text-[var(--tt-ink)]"
+        className="inline-flex w-fit items-center gap-1.5 rounded-xl px-2 py-1 text-[13px] font-medium text-[var(--tt-ink-2)] transition-colors hover:bg-[var(--tt-surface-2)] hover:text-[var(--tt-ink)]"
       >
         <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-        Today
+        Back to Today
       </Link>
 
-      <header className="flex flex-col gap-2">
-        {projectName ? (
-          <p className="text-[11px] uppercase tracking-[0.14em] text-[var(--tt-accent)]">
-            {projectName}
-          </p>
+      <Surface className="flex flex-col gap-3.5 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          {projectName ? (
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--tt-accent)]">
+              {projectName}
+            </p>
+          ) : (
+            <span />
+          )}
+          <StatusPill tone={done ? 'accent' : 'neutral'}>
+            {done ? 'Completed' : task.status.replace(/_/g, ' ')}
+          </StatusPill>
+        </div>
+
+        <h1 className="text-[24px] leading-tight text-[var(--tt-ink)]">{task.title}</h1>
+        {(task.planned_week || task.due_date_certainty === 'approximate') ? (
+          <p className="text-[13.5px] text-[var(--tt-ink-2)]">{projectPlanLabel(task)}</p>
+        ) : null}
+        {!task.series_id &&
+        projectName === 'Tinglum Farm TASKS' &&
+        (canEditContent || task.created_by_person_id === principal.person.id || isCurrentAssignee) ? (
+          <ProjectForm task={task} />
         ) : null}
 
-        <h1 className="text-2xl leading-tight">{task.title}</h1>
-        {(task.planned_week || task.due_date_certainty === 'approximate') && <p className="text-sm text-[var(--tt-ink-2)]">{projectPlanLabel(task)}</p>}
-        {!task.series_id && projectName === 'Tinglum Farm TASKS' && (canEditContent || task.created_by_person_id === principal.person.id || isCurrentAssignee) && <ProjectForm task={task} />}
+        <div className="flex flex-wrap items-center gap-2 pt-0.5 text-[13px] text-[var(--tt-ink-2)]">
+          {currentAssignee ? (
+            <span className="inline-flex items-center gap-2 rounded-full bg-[var(--tt-surface-2)] py-1 pl-1 pr-3 text-[13px] font-medium text-[var(--tt-ink)]">
+              <Avatar person={currentAssignee} size={24} />
+              {currentAssignee.preferredName?.trim() || currentAssignee.fullName}
+            </span>
+          ) : (
+            <StatusPill tone="warn">Unclaimed</StatusPill>
+          )}
 
-        {currentAssignee ? (
-          <div className="flex items-center gap-2 text-[14px] text-[var(--tt-ink-2)]">
-            <Avatar person={currentAssignee} size={36} />
-            <span>{currentAssignee.preferredName?.trim() || currentAssignee.fullName}</span>
-          </div>
-        ) : null}
-
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-[var(--tt-ink-3)]">
           {task.due_date ? (
-            <span>
+            <span className="rounded-full border border-[var(--tt-rule)] bg-[var(--tt-ground)] px-3 py-1 text-[12.5px] font-medium text-[var(--tt-ink-2)]">
               {new Intl.DateTimeFormat(UI_LOCALE, {
-                weekday: 'long',
+                weekday: 'short',
                 day: 'numeric',
-                month: 'long',
+                month: 'short',
                 timeZone: FARM_TZ,
               }).format(farmDayStart(task.due_date))}
             </span>
           ) : null}
 
           {task.due_at ? (
-            <span className="inline-flex items-center gap-1 tabular-nums">
-              <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+            <span className="inline-flex items-center gap-1 rounded-full border border-[var(--tt-rule)] bg-[var(--tt-ground)] px-3 py-1 text-[12.5px] font-medium tabular-nums text-[var(--tt-ink-2)]">
+              <Clock className="h-3.5 w-3.5 text-[var(--tt-ink-3)]" aria-hidden="true" />
               {formatFarm(new Date(task.due_at), 'HH:mm')}
             </span>
           ) : null}
 
           {seriesRule ? (
-            <span className="inline-flex items-center gap-1">
-              <Repeat className="h-3.5 w-3.5" aria-hidden="true" />
+            <span className="inline-flex items-center gap-1 rounded-full border border-[var(--tt-rule)] bg-[var(--tt-ground)] px-3 py-1 text-[12.5px] text-[var(--tt-ink-2)]">
+              <Repeat className="h-3.5 w-3.5 text-[var(--tt-ink-3)]" aria-hidden="true" />
               {describeRule(seriesRule)}
             </span>
           ) : null}
         </div>
-      </header>
+      </Surface>
 
       {task.description ? (
         <Surface className="p-4">

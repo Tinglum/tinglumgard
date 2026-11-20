@@ -6,6 +6,7 @@ import { AlertTriangle, Check, Loader2, Mic, MicOff, Plus, Sparkles, X } from 'l
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/todotwo/ui/button'
 import { Surface } from '@/components/todotwo/ui/states'
+import { addFarmDays, farmToday } from '@/lib/todotwo/time'
 
 interface QuickAddPerson {
   id: string
@@ -239,9 +240,9 @@ export function QuickAdd({ canManageAll }: { canManageAll: boolean }) {
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   rows={3}
-                  placeholder='e.g. "Remind me to check the fence by the north paddock tomorrow"'
+                  placeholder='e.g. "Check north paddock fence tomorrow"'
                   className={cn(
-                    'w-full rounded-md border border-[var(--tt-rule-strong)] bg-[var(--tt-surface)] p-3 text-[15px]',
+                    'w-full rounded-xl border border-[var(--tt-rule-strong)] bg-[var(--tt-surface)] p-3 text-[15px]',
                     'text-[var(--tt-ink)] placeholder:text-[var(--tt-ink-3)]',
                     'focus:outline-none focus:ring-2 focus:ring-[var(--tt-accent)]'
                   )}
@@ -262,6 +263,27 @@ export function QuickAdd({ canManageAll }: { canManageAll: boolean }) {
                     {listening ? <MicOff className="h-5 w-5" aria-hidden="true" /> : <Mic className="h-5 w-5" aria-hidden="true" />}
                   </button>
                 ) : null}
+              </div>
+              {/* 1-tap quick timing & urgency chips (#9) */}
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {['today', 'tomorrow', 'this week', 'urgent'].map((chip) => (
+                  <button
+                    key={chip}
+                    type="button"
+                    onClick={() =>
+                      setText((prev) =>
+                        prev.toLowerCase().includes(chip)
+                          ? prev
+                          : prev.trim()
+                            ? `${prev.trim()} ${chip}`
+                            : `${chip} `
+                      )
+                    }
+                    className="rounded-full border border-[var(--tt-rule)] bg-[var(--tt-surface-2)]/70 px-2.5 py-1 text-[12px] font-medium capitalize text-[var(--tt-ink-2)] transition-colors hover:border-[var(--tt-accent)] hover:bg-[var(--tt-accent-soft)] hover:text-[var(--tt-accent)]"
+                  >
+                    + {chip}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -329,8 +351,32 @@ export function QuickAdd({ canManageAll }: { canManageAll: boolean }) {
                   type="date"
                   value={proposal.dueDate ?? ''}
                   onChange={(e) => setProposal({ ...proposal, dueDate: e.target.value || null })}
-                  className="min-h-[40px] rounded-md border border-[var(--tt-rule-strong)] bg-[var(--tt-surface)] px-2 text-[14px] text-[var(--tt-ink)]"
+                  className="min-h-[40px] rounded-xl border border-[var(--tt-rule-strong)] bg-[var(--tt-surface)] px-2.5 text-[14px] text-[var(--tt-ink)]"
                 />
+                <div className="mt-1 flex gap-1">
+                  {[
+                    { label: 'Today', offset: 0 },
+                    { label: 'Tomorrow', offset: 1 },
+                    { label: '+3d', offset: 3 },
+                  ].map((opt) => {
+                    const target = addFarmDays(farmToday(), opt.offset)
+                    return (
+                      <button
+                        key={opt.label}
+                        type="button"
+                        onClick={() => setProposal({ ...proposal, dueDate: target })}
+                        className={cn(
+                          'rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors',
+                          proposal.dueDate === target
+                            ? 'bg-[var(--tt-accent)] text-[var(--tt-on-accent)]'
+                            : 'bg-[var(--tt-surface-2)] text-[var(--tt-ink-2)] hover:text-[var(--tt-ink)]'
+                        )}
+                      >
+                        {opt.label}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
 
               {canManageAll ? <div className="flex flex-col gap-1">

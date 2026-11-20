@@ -1,7 +1,8 @@
 import { RosterDatePicker } from '@/components/todotwo/roster/date-picker'
 import { UndoCompletionButton } from '@/components/todotwo/roster/undo-completion-button'
 import Link from 'next/link'
-import { EmptyState, Surface } from '@/components/todotwo/ui/states'
+import { Check, Hand } from 'lucide-react'
+import { EmptyState, StatusPill, Surface } from '@/components/todotwo/ui/states'
 import { Avatar } from '@/components/todotwo/ui/avatar'
 import { UI_LOCALE } from '@/lib/todotwo/copy'
 import { cn } from '@/lib/utils'
@@ -22,40 +23,6 @@ import { TODOTWO_BASE, todoTwoRoutes } from '@/lib/todotwo/routes'
 
 export const dynamic = 'force-dynamic'
 
-/**
- * Finished work. `task_status` has eleven values; OPEN_STATUSES in
- * lib/todotwo/queries.ts names the seven that are still outstanding, which
- * leaves completed, verified, awaiting_verification and cancelled as closed.
- *
- * awaiting_verification is not in OPEN_STATUSES and the board already labels
- * it "Done": the person did the work, someone else has yet to sign it off.
- * On a "who is doing what" view that reads as done, so it strikes through and
- * counts towards the tally.
- *
- * cancelled is deliberately *not* here. Cancelled work was never done, so
- * counting it as done would inflate the tally and make a called-off day look
- * productive. It is struck through too — it is not outstanding either — but
- * dimmer, and it is excluded from the denominator rather than the numerator.
- */
-
-
-/**
- * Who is doing what, at a glance — today and tomorrow side by side, one
- * section per person per day. Distinct from Today/Upcoming (a person's own
- * work) and from the farm-wide Favorites view (a flat list not grouped by
- * person).
- *
- * Two days rather than one because that is the question the view is actually
- * asked: what is happening now, and what needs lining up before it arrives.
- * The date picker still moves the pair, so any two consecutive days can be
- * read; it picks the first of the two.
- *
- * Open to everyone signed in: RLS already treats farm work as not secret
- * (see the tasks policy comments) and Favorites' own farm-wide view is staff
- * gated for a different reason (it surfaces active in-progress work), not
- * because who's-on-what is sensitive. A day roster is the same visibility the
- * app already gives a Workawayer standing in the barn reading the list.
- */
 export default async function RosterPage({
   searchParams,
 }: {
@@ -67,54 +34,90 @@ export default async function RosterPage({
   const start: FarmDate = rawDate && isFarmDate(rawDate) ? rawDate : farmToday()
   const second: FarmDate = addFarmDays(start, 1)
 
-  // Two reads rather than one ranged read: the query is already indexed on
-  // due_date and grouping happens per day anyway, so a range would only have
-  // to be split apart again.
   const [firstEntries, secondEntries] = await Promise.all([
     getRosterForDate(start),
     getRosterForDate(second),
   ])
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-8">
+    <div className="tt-fade-up mx-auto flex w-full max-w-4xl flex-col gap-7">
       <header className="flex flex-col gap-3">
-        <h1 className="text-2xl">Roster</h1>
-        <p className="text-sm text-[var(--tt-ink-2)]">
-          Who is on what over two days. Finished work is struck through.
-        </p>
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--tt-accent)]">
+            Two-day view
+          </p>
+          <h1 className="mt-0.5 text-[26px] leading-tight text-[var(--tt-ink)]">Farm Roster</h1>
+          <p className="mt-1 text-[13.5px] text-[var(--tt-ink-2)]">
+            Who is on what across two days, with live completion progress.
+          </p>
+        </div>
         <RosterDatePicker date={start} />
       </header>
 
-      <RosterDay date={start} entries={firstEntries} currentPersonId={principal.person.id} canUndoAll={principal.isAdmin} />
-      <RosterDay date={second} entries={secondEntries} currentPersonId={principal.person.id} canUndoAll={principal.isAdmin} />
+      <RosterDay
+        date={start}
+        entries={firstEntries}
+        currentPersonId={principal.person.id}
+        canUndoAll={principal.isAdmin}
+      />
+      <RosterDay
+        date={second}
+        entries={secondEntries}
+        currentPersonId={principal.person.id}
+        canUndoAll={principal.isAdmin}
+      />
     </div>
   )
 }
 
-/** One labelled day: its heading, then a section per person with work on it. */
-function RosterDay({ date, entries, currentPersonId, canUndoAll }: { date: FarmDate; entries: RosterEntry[]; currentPersonId: string; canUndoAll: boolean }) {
+function RosterDay({
+  date,
+  entries,
+  currentPersonId,
+  canUndoAll,
+}: {
+  date: FarmDate
+  entries: RosterEntry[]
+  currentPersonId: string
+  canUndoAll: boolean
+}) {
   const populated = entries.filter((entry) => entry.tasks.length > 0)
   const total = populated.reduce((sum, entry) => sum + entry.tasks.length, 0)
+  const totalDone = populated.reduce(
+    (sum, entry) => sum + entry.tasks.filter((t) => isFinished(t.status)).length,
+    0
+  )
   const relative = relativeLabel(date)
 
   return (
     <section className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-baseline gap-x-2 border-b border-[var(--tt-rule)] pb-2">
-        <h2 className="text-[17px] font-semibold text-[var(--tt-ink)]">
+      <div className="flex flex-wrap items-baseline gap-x-2.5 border-b border-[var(--tt-rule)] pb-2.5">
+        <h2 className="text-[18px] font-semibold text-[var(--tt-ink)]">
           {relative ?? longDate(date)}
         </h2>
-        {relative ? <span className="text-sm text-[var(--tt-ink-2)]">{longDate(date)}</span> : null}
-        <span className="ml-auto text-[12px] tabular-nums text-[var(--tt-ink-3)]">
-          {total === 0 ? 'nothing scheduled' : `${total} task${total === 1 ? '' : 's'}`}
-        </span>
+        {relative ? <span className="text-[13.5px] text-[var(--tt-ink-2)]">{longDate(date)}</span> : null}
+        <div className="ml-auto flex items-center gap-2">
+          {total > 0 ? (
+            <StatusPill tone={totalDone === total ? 'accent' : 'neutral'}>
+              {totalDone}/{total} done
+            </StatusPill>
+          ) : (
+            <span className="text-[12px] text-[var(--tt-ink-3)]">nothing scheduled</span>
+          )}
+        </div>
       </div>
 
       {total === 0 ? (
         <EmptyState title="Nothing scheduled" description="No tasks are due on this day." />
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {populated.map((entry) => (
-            <PersonBlock key={entry.personId ?? 'unassigned'} entry={entry} currentPersonId={currentPersonId} canUndoAll={canUndoAll} />
+            <PersonBlock
+              key={entry.personId ?? 'unassigned'}
+              entry={entry}
+              currentPersonId={currentPersonId}
+              canUndoAll={canUndoAll}
+            />
           ))}
         </div>
       )}
@@ -122,81 +125,129 @@ function RosterDay({ date, entries, currentPersonId, canUndoAll }: { date: FarmD
   )
 }
 
-/** One person's work for a day, with a done-of-outstanding tally. */
-function PersonBlock({ entry, currentPersonId, canUndoAll }: { entry: RosterEntry; currentPersonId: string; canUndoAll: boolean }) {
+function PersonBlock({
+  entry,
+  currentPersonId,
+  canUndoAll,
+}: {
+  entry: RosterEntry
+  currentPersonId: string
+  canUndoAll: boolean
+}) {
   const cancelled = entry.tasks.filter((task) => isCancelled(task.status)).length
   const countable = entry.tasks.length - cancelled
   const done = entry.tasks.filter((task) => isFinished(task.status)).length
+  const pct = countable > 0 ? Math.round((done / countable) * 100) : 0
+  const isMe = entry.personId === currentPersonId
+  const isUnassigned = !entry.personId
 
   return (
-    <div className="flex flex-col gap-2">
-      <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--tt-ink-3)]">
-        {entry.personId ? (
-          <Avatar
-            person={{
-              id: entry.personId,
-              fullName: entry.personName ?? '?',
-              photoUrl: entry.photoUrl,
-            }}
-            size={18}
-          />
+    <Surface
+      className={cn(
+        'flex flex-col gap-3 p-4',
+        isMe && 'ring-1 ring-[var(--tt-accent-ring)]',
+        isUnassigned && 'border-[var(--tt-warn-rule)] bg-[var(--tt-warn-soft)]/30'
+      )}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2.5">
+          {entry.personId ? (
+            <Avatar
+              person={{
+                id: entry.personId,
+                fullName: entry.personName ?? '?',
+                photoUrl: entry.photoUrl,
+              }}
+              size={30}
+            />
+          ) : (
+            <span className="flex h-[30px] w-[30px] items-center justify-center rounded-full bg-[var(--tt-warn-soft)] text-[var(--tt-warn)]">
+              <Hand className="h-4 w-4" aria-hidden="true" />
+            </span>
+          )}
+          <div className="min-w-0">
+            <h3 className="flex items-center gap-1.5 truncate text-[15px] font-semibold text-[var(--tt-ink)]">
+              <span className="truncate">{entry.personName}</span>
+              {isMe ? (
+                <span className="rounded-full bg-[var(--tt-accent-soft)] px-2 py-0.5 text-[10.5px] font-semibold text-[var(--tt-accent)]">
+                  You
+                </span>
+              ) : null}
+            </h3>
+            <p className="text-[12px] tabular-nums text-[var(--tt-ink-3)]">
+              {countable > 0 ? `${done} of ${countable} done` : `${entry.tasks.length} items`}
+              {cancelled > 0 ? ` · ${cancelled} cancelled` : ''}
+            </p>
+          </div>
+        </div>
+
+        {!isUnassigned && countable > 0 ? (
+          <StatusPill tone={done === countable ? 'accent' : 'neutral'}>{pct}%</StatusPill>
         ) : null}
-        {entry.personName}
-        <span className="font-normal normal-case tracking-normal">
-          {countable > 0 ? `· ${done} of ${countable} done` : `· ${entry.tasks.length}`}
-          {cancelled > 0 ? ` · ${cancelled} cancelled` : ''}
-        </span>
-      </h3>
+      </div>
 
-      <Surface className="px-4">
-        <ul className="list-none divide-y divide-[var(--tt-rule)]">
-          {entry.tasks.map((task) => {
-            const taskDone = isFinished(task.status)
-            const taskCancelled = isCancelled(task.status)
+      {!isUnassigned && countable > 0 ? (
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--tt-surface-2)]">
+          <div
+            className="h-full rounded-full bg-[var(--tt-accent)] transition-[width]"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      ) : null}
 
-            return (
-              <li
-                key={task.id}
+      <ul className="list-none divide-y divide-[var(--tt-rule)]">
+        {entry.tasks.map((task) => {
+          const taskDone = isFinished(task.status)
+          const taskCancelled = isCancelled(task.status)
+
+          return (
+            <li
+              key={task.id}
+              className={cn(
+                'flex items-center justify-between gap-2.5 py-2.5 first:pt-1 last:pb-0',
+                taskCancelled && 'opacity-55'
+              )}
+            >
+              <Link
+                href={`${TODOTWO_BASE}/tasks/${task.id}`}
                 className={cn(
-                  'flex items-center justify-between gap-3 py-3',
-                  taskCancelled && 'opacity-60'
+                  'flex min-w-0 flex-1 items-center gap-2 text-[14px] hover:text-[var(--tt-accent)]',
+                  (taskDone || taskCancelled) && 'line-through',
+                  taskDone && 'text-[var(--tt-ink-3)]',
+                  taskCancelled && 'text-[var(--tt-ink-3)]'
                 )}
               >
-                <Link
-                  href={`${TODOTWO_BASE}/tasks/${task.id}`}
+                <span
                   className={cn(
-                    'min-w-0 flex-1 truncate text-[15px]',
-                    (taskDone || taskCancelled) && 'line-through',
-                    taskDone && 'text-[var(--tt-ink-2)]',
-                    taskCancelled && 'text-[var(--tt-ink-3)]'
+                    'flex h-4 w-4 shrink-0 items-center justify-center rounded-full border',
+                    taskDone
+                      ? 'border-[var(--tt-accent)] bg-[var(--tt-accent)] text-[var(--tt-on-accent)]'
+                      : 'border-[var(--tt-rule-strong)]'
                   )}
                 >
-                  {task.title}
-                </Link>
+                  {taskDone ? <Check className="h-2.5 w-2.5 stroke-[3]" /> : null}
+                </span>
+                <span className="truncate">{task.title}</span>
+              </Link>
+              <div className="flex shrink-0 items-center gap-1.5">
                 {task.dueAt ? (
-                  <span className="shrink-0 text-[12px] tabular-nums text-[var(--tt-ink-3)]">
+                  <span className="rounded-md bg-[var(--tt-surface-2)] px-1.5 py-0.5 text-[11.5px] font-medium tabular-nums text-[var(--tt-ink-2)]">
                     {formatFarm(new Date(task.dueAt), 'HH:mm')}
                   </span>
                 ) : null}
-                <span className="shrink-0 text-[11px] uppercase tracking-wide text-[var(--tt-ink-3)]">
-                  {task.status.replace(/_/g, ' ')}
-                </span>
-                {(canUndoAll || entry.personId === currentPersonId) && task.status === 'completed' ? (
+                {(canUndoAll || entry.personId === currentPersonId) &&
+                task.status === 'completed' ? (
                   <UndoCompletionButton taskId={task.id} taskTitle={task.title} />
                 ) : null}
-              </li>
-            )
-          })}
-        </ul>
-      </Surface>
-    </div>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+    </Surface>
   )
 }
 
-/**
- * "Today" / "Tomorrow" / "Yesterday", or null when the date is far enough out
- * that the calendar date is the only useful label.
- */
 function relativeLabel(date: FarmDate): string | null {
   const offset = farmDaysBetween(farmToday(), date)
   if (offset === 0) return 'Today'

@@ -182,6 +182,8 @@ export async function getToday(
   olderOpenCount: number
   /** Series IDs that repeat daily, computed from the already-fetched task_series query. */
   dailySeriesIds: string[]
+  /** Farm roster already fetched alongside tasks — zero extra round trip. */
+  farmPeople: TaskAssignee[]
 }> {
   const db = getTodoTwoClient()
   const floor = addFarmDays(today, -OVERDUE_WINDOW_DAYS)
@@ -268,6 +270,15 @@ export async function getToday(
     (task) => (!isWeekly(task) && !isProject(task)) || Boolean(task.assignee)
   )
 
+  const farmPeople: TaskAssignee[] = ((rosterResult.data ?? []) as RosterRow[])
+    .map((p) => ({
+      id: p.id,
+      fullName: p.full_name,
+      preferredName: p.preferred_name,
+      photoUrl: p.photo_url,
+    }))
+    .sort((a, b) => (a.preferredName || a.fullName).localeCompare(b.preferredName || b.fullName))
+
   return {
     weeklyTasks: sortTasks(rows.filter(isWeekly)),
     projects: sortTasks(rows.filter(isProject)),
@@ -287,6 +298,71 @@ export async function getToday(
     everyoneToday: sortTasks(dailyRows.filter((t) => dueToday(t) && Boolean(t.assignee))),
     olderOpenCount: staleResult.count ?? 0,
     dailySeriesIds,
+    farmPeople,
+  }
+}
+
+export interface BarnNote {
+  id: string
+  title: string
+  body: string
+  urgency: 'info' | 'important' | 'urgent'
+  publishedAt: string
+  authorName: string | null
+}
+
+/**
+ * Latest active published announcement from the last 48 hours that the user
+ * hasn't acknowledged yet — surfaced as a compact "Barn Note" banner on Today.
+ */
+export async function getActiveBarnNote(personId: string): Promise<BarnNote | null> {
+  const db = getTodoTwoClient()
+  const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
+
+  const { data, error } = await db
+    .from('announcements')
+    .select(
+      'id, title, body, urgency, published_at, people:author_person_id (full_name, preferred_name)'
+    )
+    .is('deleted_at', null)
+    .not('published_at', 'is', null)
+    .gte('published_at', cutoff)
+    .order('published_at', { ascending: false })
+    .limit(5)
+
+  if (error || !data || data.length === 0) return null
+
+  const rows = data as unknown as {
+    id: string
+    title: string
+    body: string
+    urgency: 'info' | 'important' | 'urgent'
+    published_at: string
+    people: { full_name: string; preferred_name: string | null } | null
+  }[]
+
+  const { data: acks } = await db
+    .from('announcement_acknowledgements')
+    .select('announcement_id')
+    .eq('person_id', personId)
+    .in(
+      'announcement_id',
+      rows.map((r) => r.id)
+    )
+
+  const acked = new Set(((acks ?? []) as { announcement_id: string }[]).map((a) => a.announcement_id))
+  const firstUnread = rows.find((r) => !acked.has(r.id))
+  if (!firstUnread) return null
+
+  return {
+    id: firstUnread.id,
+    title: firstUnread.title,
+    body: firstUnread.body,
+    urgency: firstUnread.urgency,
+    publishedAt: firstUnread.published_at,
+    authorName: firstUnread.people
+      ? firstUnread.people.preferred_name?.trim() || firstUnread.people.full_name
+      : null,
   }
 }
 

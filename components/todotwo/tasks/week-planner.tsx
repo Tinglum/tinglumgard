@@ -3,13 +3,18 @@
 import * as React from 'react'
 import Link from 'next/link'
 import {
+  BarChart3,
   CalendarDays,
   CalendarOff,
   Check,
   Clock,
   FolderKanban,
   Hand,
+  Loader2,
+  SlidersHorizontal,
+  Sparkles,
   Users,
+  X,
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
@@ -28,13 +33,30 @@ import type { DayOffEntry } from '@/lib/todotwo/domain/days-off'
 
 type ScopeFilter = 'everyone' | 'mine' | 'unclaimed'
 
+interface SuggestedAssignment {
+  taskId: string
+  personId: string
+  reason: string
+}
+
 function timeLabel(dueAt: string | null): string | null {
   return dueAt ? formatFarm(new Date(dueAt), 'HH:mm') : null
+}
+
+function sortTasks(tasks: QueryTaskRow[]): QueryTaskRow[] {
+  return [...tasks].sort((a, b) => {
+    if (a.due_at && b.due_at) return a.due_at.localeCompare(b.due_at)
+    if (a.due_at) return -1
+    if (b.due_at) return 1
+    if (a.priority !== b.priority) return a.priority - b.priority
+    return a.title.localeCompare(b.title)
+  })
 }
 
 export function WeekPlanner({
   today,
   currentPerson,
+  farmPeople,
   canManageProjects,
   initialGroups,
   initialWeeklyTasks,
@@ -45,6 +67,7 @@ export function WeekPlanner({
 }: {
   today: string
   currentPerson: TaskAssignee
+  farmPeople: TaskAssignee[]
   canManageProjects: boolean
   initialGroups: TaskGroup[]
   initialWeeklyTasks: QueryTaskRow[]
@@ -58,6 +81,15 @@ export function WeekPlanner({
   const [projects, setProjects] = React.useState<QueryTaskRow[]>(initialProjects)
   const [scope, setScope] = React.useState<ScopeFilter>('everyone')
   const [selectedDate, setSelectedDate] = React.useState<string | 'all'>('all')
+  const [editingTaskId, setEditingTaskId] = React.useState<string | null>(null)
+  const [showWorkload, setShowWorkload] = React.useState(true)
+
+  // Auto-fill unclaimed preview/apply state (staff only)
+  const [previewLoading, setPreviewLoading] = React.useState(false)
+  const [applyingPlan, setApplyingPlan] = React.useState(false)
+  const [suggestedPlan, setSuggestedPlan] = React.useState<SuggestedAssignment[] | null>(null)
+  const [unassignableCount, setUnassignableCount] = React.useState(0)
+
   const [toast, setToast] = React.useState<{ message: string; tone?: 'accent' | 'danger' } | null>(
     null
   )
@@ -68,9 +100,16 @@ export function WeekPlanner({
 
   React.useEffect(() => {
     if (!toast) return
-    const timer = setTimeout(() => setToast(null), 2600)
+    const timer = setTimeout(() => setToast(null), 2800)
     return () => clearTimeout(timer)
   }, [toast])
+
+  const personById = React.useMemo(() => {
+    const map = new Map<string, TaskAssignee>()
+    for (const p of farmPeople) map.set(p.id, p)
+    map.set(currentPerson.id, currentPerson)
+    return map
+  }, [farmPeople, currentPerson])
 
   // Map date -> people with a day off
   const offByDate = React.useMemo(() => {
@@ -87,6 +126,41 @@ export function WeekPlanner({
     return map
   }, [daysOffSchedule, showEveryoneDaysOff, currentPerson.id])
 
+  // Map personId -> days off in this 7-day window
+  const offDaysByPerson = React.useMemo(() => {
+    const windowDates = new Set(groups.map((g) => g.date))
+    const map = new Map<string, string[]>()
+    for (const entry of daysOffSchedule) {
+      if (!entry.off || !windowDates.has(entry.date)) continue
+      const list = map.get(entry.off.id) ?? []
+      list.push(formatFarm(farmDayStart(entry.date), 'EEE'))
+      map.set(entry.off.id, list)
+    }
+    return map
+  }, [daysOffSchedule, groups])
+
+  // Workload balance across the 7-day window
+  const workload = React.useMemo(() => {
+    const stats = new Map<
+      string,
+      { person: TaskAssignee; count: number; minutes: number; done: number }
+    >()
+    for (const g of groups) {
+      for (const task of g.tasks) {
+        if (!task.assignee) continue
+        const p = task.assignee
+        const entry = stats.get(p.id) ?? { person: p, count: 0, minutes: 0, done: 0 }
+        entry.count += 1
+        entry.minutes += task.estimated_minutes ?? 0
+        if (isFinished(task.status)) entry.done += 1
+        stats.set(p.id, entry)
+      }
+    }
+    const list = Array.from(stats.values()).sort((a, b) => b.count - a.count)
+    const maxCount = Math.max(1, ...list.map((x) => x.count))
+    return { list, maxCount }
+  }, [groups])
+
   const handleStatusChange = React.useCallback((taskId: string, nextDone: boolean) => {
     const nextStatus = nextDone ? 'completed' : 'assigned'
     setGroups((prev) =>
@@ -98,6 +172,86 @@ export function WeekPlanner({
     setWeeklyTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status: nextStatus } : t)))
     setProjects((prev) => prev.map((t) => (t.id === taskId ? { ...t, status: nextStatus } : t)))
   }, [])
+
+  // Instant 0 ms owner reassignment (staff)
+  async function handleReassign(task: QueryTaskRow, nextPersonId: string) {
+    const nextAssignee = nextPersonId ? (personById.get(nextPersonId) ?? null) : null
+    const updated: QueryTaskRow = { ...task, assignee: nextAssignee }
+
+    setGroups((prev) =>
+      prev.map((g) => ({
+        ...g,
+        tasks: g.tasks.map((t) => (t.id === task.id ? updated : t)),
+      }))
+    )
+    setWeeklyTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)))
+    setProjects((prev) => prev.map((t) => (t.id === task.id ? updated : t)))
+    setToast({
+      message: nextAssignee
+        ? `Assigned "${task.title}" to ${nextAssignee.preferredName || nextAssignee.fullName}`
+        : `Released "${task.title}" to Up for grabs`,
+      tone: 'accent',
+    })
+
+    const { error } = await getTodoTwoBrowserClient().rpc('assign_task', {
+      p_task_id: task.id,
+      p_person_id: nextPersonId || null,
+    })
+    if (error) {
+      setGroups((prev) =>
+        prev.map((g) => ({
+          ...g,
+          tasks: g.tasks.map((t) => (t.id === task.id ? task : t)),
+        }))
+      )
+      setWeeklyTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
+      setProjects((prev) => prev.map((t) => (t.id === task.id ? task : t)))
+      setToast({ message: error.message || 'Could not reassign task.', tone: 'danger' })
+    }
+  }
+
+  // Instant 0 ms day mover (staff)
+  async function handleMoveDay(task: QueryTaskRow, fromDate: string, toDate: string) {
+    if (!toDate || toDate === fromDate) return
+    const movedTask: QueryTaskRow = { ...task, due_date: toDate }
+
+    setGroups((prev) =>
+      prev.map((g) => {
+        if (g.date === fromDate) {
+          return { ...g, tasks: g.tasks.filter((t) => t.id !== task.id) }
+        }
+        if (g.date === toDate) {
+          return { ...g, tasks: sortTasks([...g.tasks, movedTask]) }
+        }
+        return g
+      })
+    )
+    setEditingTaskId(null)
+    setToast({
+      message: `Moved "${task.title}" to ${formatFarm(farmDayStart(toDate), 'EEE d MMM')}`,
+      tone: 'accent',
+    })
+
+    const db = getTodoTwoBrowserClient()
+    const { error } = task.series_id
+      ? await db.rpc('reschedule_occurrence', { p_task_id: task.id, p_new_date: toDate })
+      : await db.from('tasks').update({ due_date: toDate }).eq('id', task.id)
+
+    if (error) {
+      setGroups((prev) =>
+        prev.map((g) => {
+          if (g.date === toDate) {
+            return { ...g, tasks: g.tasks.filter((t) => t.id !== task.id) }
+          }
+          if (g.date === fromDate) {
+            return { ...g, tasks: sortTasks([...g.tasks, task]) }
+          }
+          return g
+        })
+      )
+      setToast({ message: error.message || 'Could not move task.', tone: 'danger' })
+    }
+  }
 
   async function handleClaim(task: QueryTaskRow, source: 'day' | 'weekly' | 'projects') {
     const claimed: QueryTaskRow = { ...task, assignee: currentPerson }
@@ -139,6 +293,90 @@ export function WeekPlanner({
     }
   }
 
+  // One-click Auto-fill Unclaimed (preview -> approve)
+  async function handlePreviewAutoFill() {
+    if (groups.length === 0 || previewLoading) return
+    setPreviewLoading(true)
+    setSuggestedPlan(null)
+    try {
+      const response = await fetch('/api/todotwo/assign/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: '',
+          from: groups[0].date,
+          to: groups[groups.length - 1].date,
+        }),
+      })
+      const data = (await response.json()) as {
+        ok?: boolean
+        message?: string
+        plan?: { assignments: SuggestedAssignment[]; unassignable: unknown[] }
+      }
+      if (!response.ok || !data.ok || !data.plan) {
+        setToast({
+          message: data.message ?? 'Could not build suggestions right now.',
+          tone: 'danger',
+        })
+        return
+      }
+      if (data.plan.assignments.length === 0) {
+        setToast({ message: 'No assignable gaps found for this week.', tone: 'accent' })
+        return
+      }
+      setSuggestedPlan(data.plan.assignments)
+      setUnassignableCount(data.plan.unassignable.length)
+    } catch {
+      setToast({ message: 'Network error while building suggestions.', tone: 'danger' })
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
+
+  async function handleApplyAutoFill() {
+    if (!suggestedPlan || suggestedPlan.length === 0 || applyingPlan) return
+    setApplyingPlan(true)
+    try {
+      const response = await fetch('/api/todotwo/assign/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignments: suggestedPlan.map(({ taskId, personId }) => ({ taskId, personId })),
+        }),
+      })
+      const data = (await response.json()) as {
+        ok?: boolean
+        applied?: { taskId: string; personId: string }[]
+        message?: string
+      }
+      if (!response.ok || !data.applied) {
+        setToast({ message: data.message ?? 'Could not apply assignments.', tone: 'danger' })
+        return
+      }
+      const appliedMap = new Map(data.applied.map((a) => [a.taskId, a.personId]))
+      setGroups((prev) =>
+        prev.map((g) => ({
+          ...g,
+          tasks: g.tasks.map((t) => {
+            const pid = appliedMap.get(t.id)
+            if (!pid) return t
+            const person = personById.get(pid)
+            return person ? { ...t, assignee: person } : t
+          }),
+        }))
+      )
+      setSuggestedPlan(null)
+      setToast({
+        message: `Assigned ${data.applied.length} task${data.applied.length === 1 ? '' : 's'} fairly across the team`,
+        tone: 'accent',
+      })
+    } catch {
+      setToast({ message: 'Network error applying assignments.', tone: 'danger' })
+    } finally {
+      setApplyingPlan(false)
+    }
+  }
+
   function filterTasks(tasks: QueryTaskRow[]): QueryTaskRow[] {
     if (scope === 'mine') return tasks.filter((t) => t.assignee?.id === currentPerson.id)
     if (scope === 'unclaimed') return tasks.filter((t) => !t.assignee && !isFinished(t.status))
@@ -168,15 +406,15 @@ export function WeekPlanner({
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--tt-accent)]">
-            7-Day Overview
+            7-Day Planner
           </p>
           <h1 className="mt-0.5 text-[26px] leading-tight text-[var(--tt-ink)]">Week Plan</h1>
           <p className="mt-1 text-[13.5px] text-[var(--tt-ink-2)]">
-            See who is on what each day, spot gaps, and plan weekly farm projects.
+            Balance workload, reassign in one tap, and plan weekly farm projects.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <StatusPill tone="neutral">{totalTasks} scheduled</StatusPill>
           {totalUnclaimed > 0 ? (
             <button type="button" onClick={() => setScope('unclaimed')}>
@@ -185,8 +423,124 @@ export function WeekPlanner({
           ) : (
             <StatusPill tone="accent">All covered</StatusPill>
           )}
+          {canManageProjects && totalUnclaimed > 0 ? (
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => void handlePreviewAutoFill()}
+              disabled={previewLoading}
+            >
+              {previewLoading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5" />
+              )}
+              {previewLoading ? 'Balancing…' : 'Auto-fill gaps'}
+            </Button>
+          ) : null}
         </div>
       </header>
+
+      {/* Auto-fill preview confirmation banner */}
+      {suggestedPlan ? (
+        <Surface className="flex flex-col gap-3 border-[var(--tt-accent)] bg-[var(--tt-accent-soft)]/50 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-[14px] font-semibold text-[var(--tt-ink)]">
+                Suggested {suggestedPlan.length} fair assignment
+                {suggestedPlan.length === 1 ? '' : 's'}
+              </p>
+              <p className="text-[12.5px] text-[var(--tt-ink-2)]">
+                Respects days off, stays, pairings, and farm rules.
+                {unassignableCount > 0
+                  ? ` ${unassignableCount} task${unassignableCount === 1 ? '' : 's'} could not be placed.`
+                  : ''}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => void handleApplyAutoFill()}
+                disabled={applyingPlan}
+              >
+                {applyingPlan ? 'Applying…' : 'Apply all'}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setSuggestedPlan(null)}
+                disabled={applyingPlan}
+              >
+                Dismiss
+              </Button>
+            </div>
+          </div>
+        </Surface>
+      ) : null}
+
+      {/* Workload Balance Bar per Person (#6) */}
+      {workload.list.length > 0 ? (
+        <Surface className="p-4">
+          <button
+            type="button"
+            onClick={() => setShowWorkload((v) => !v)}
+            className="flex w-full items-center justify-between text-left"
+          >
+            <span className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-[var(--tt-ink-3)]">
+              <BarChart3 className="h-3.5 w-3.5 text-[var(--tt-accent)]" aria-hidden="true" />
+              Weekly workload balance · {workload.list.length} people
+            </span>
+            <span className="text-[12px] font-medium text-[var(--tt-accent)]">
+              {showWorkload ? 'Hide' : 'Show'}
+            </span>
+          </button>
+
+          {showWorkload ? (
+            <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              {workload.list.map(({ person, count, minutes }) => {
+                const pct = Math.round((count / workload.maxCount) * 100)
+                const offDays = offDaysByPerson.get(person.id) ?? []
+                const hours = minutes > 0 ? `${(minutes / 60).toFixed(1)}h` : null
+                return (
+                  <div
+                    key={person.id}
+                    className="flex items-center gap-2.5 rounded-xl bg-[var(--tt-ground)]/60 px-3 py-2"
+                  >
+                    <Avatar person={person} size={26} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="truncate text-[13px] font-semibold text-[var(--tt-ink)]">
+                          {person.preferredName?.trim() || person.fullName}
+                          {offDays.length > 0 ? (
+                            <span className="ml-1.5 text-[11px] font-normal text-[var(--tt-ink-3)]">
+                              · off {offDays.join(', ')}
+                            </span>
+                          ) : null}
+                        </span>
+                        <span className="shrink-0 text-[12px] font-semibold tabular-nums text-[var(--tt-ink-2)]">
+                          {count}
+                          {hours ? (
+                            <span className="ml-1 font-normal text-[var(--tt-ink-3)]">
+                              ({hours})
+                            </span>
+                          ) : null}
+                        </span>
+                      </div>
+                      <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-[var(--tt-surface-2)]">
+                        <div
+                          className="h-full rounded-full bg-[var(--tt-accent)] transition-[width] duration-300"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : null}
+        </Surface>
+      ) : null}
 
       {/* Interactive 7-Day Strip */}
       <div className="flex gap-1.5 overflow-x-auto pb-1">
@@ -313,7 +667,6 @@ export function WeekPlanner({
           const dayObj = farmDayStart(group.date)
           const isToday = group.date === today
 
-          // Group by person when viewing Whole Farm
           const byPerson = new Map<string, { person: TaskAssignee | null; tasks: QueryTaskRow[] }>()
           if (scope === 'everyone') {
             for (const task of tasks) {
@@ -409,36 +762,95 @@ export function WeekPlanner({
                         {pTasks.map((task) => {
                           const at = timeLabel(task.due_at)
                           const done = isFinished(task.status)
+                          const isEditing = editingTaskId === task.id
                           return (
-                            <li
-                              key={task.id}
-                              className="flex items-center justify-between gap-2 text-[13px]"
-                            >
-                              <Link
-                                href={`${TODOTWO_BASE}/tasks/${task.id}`}
-                                className={cn(
-                                  'flex min-w-0 flex-1 items-baseline gap-1.5 hover:text-[var(--tt-accent)]',
-                                  done && 'text-[var(--tt-ink-3)] line-through'
-                                )}
-                              >
-                                {done ? (
-                                  <Check className="h-3 w-3 shrink-0 text-[var(--tt-accent)]" />
-                                ) : null}
-                                {at ? (
-                                  <span className="shrink-0 text-[11.5px] font-medium tabular-nums text-[var(--tt-ink-3)]">
-                                    {at}
-                                  </span>
-                                ) : null}
-                                <span className="truncate">{task.title}</span>
-                              </Link>
-                              {!person && !done ? (
-                                <button
-                                  type="button"
-                                  onClick={() => void handleClaim(task, 'day')}
-                                  className="shrink-0 rounded-lg bg-[var(--tt-surface)] px-2 py-0.5 text-[11.5px] font-semibold text-[var(--tt-accent)] shadow-[var(--tt-shadow-xs)] hover:bg-[var(--tt-accent)] hover:text-[var(--tt-on-accent)]"
+                            <li key={task.id} className="flex flex-col gap-1.5 text-[13px]">
+                              <div className="flex items-center justify-between gap-2">
+                                <Link
+                                  href={`${TODOTWO_BASE}/tasks/${task.id}`}
+                                  className={cn(
+                                    'flex min-w-0 flex-1 items-baseline gap-1.5 hover:text-[var(--tt-accent)]',
+                                    done && 'text-[var(--tt-ink-3)] line-through'
+                                  )}
                                 >
-                                  Take
-                                </button>
+                                  {done ? (
+                                    <Check className="h-3 w-3 shrink-0 text-[var(--tt-accent)]" />
+                                  ) : null}
+                                  {at ? (
+                                    <span className="shrink-0 text-[11.5px] font-medium tabular-nums text-[var(--tt-ink-3)]">
+                                      {at}
+                                    </span>
+                                  ) : null}
+                                  <span className="truncate">{task.title}</span>
+                                </Link>
+
+                                <div className="flex shrink-0 items-center gap-1">
+                                  {!person && !done ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => void handleClaim(task, 'day')}
+                                      className="rounded-lg bg-[var(--tt-surface)] px-2 py-0.5 text-[11.5px] font-semibold text-[var(--tt-accent)] shadow-[var(--tt-shadow-xs)] hover:bg-[var(--tt-accent)] hover:text-[var(--tt-on-accent)]"
+                                    >
+                                      Take
+                                    </button>
+                                  ) : null}
+                                  {canManageProjects && !done ? (
+                                    <button
+                                      type="button"
+                                      aria-label={`Reassign or move ${task.title}`}
+                                      onClick={() =>
+                                        setEditingTaskId(isEditing ? null : task.id)
+                                      }
+                                      className={cn(
+                                        'flex h-6 w-6 items-center justify-center rounded-lg transition-colors',
+                                        isEditing
+                                          ? 'bg-[var(--tt-accent)] text-[var(--tt-on-accent)]'
+                                          : 'text-[var(--tt-ink-3)] hover:bg-[var(--tt-surface)] hover:text-[var(--tt-ink)]'
+                                      )}
+                                    >
+                                      {isEditing ? (
+                                        <X className="h-3 w-3" />
+                                      ) : (
+                                        <SlidersHorizontal className="h-3 w-3" />
+                                      )}
+                                    </button>
+                                  ) : null}
+                                </div>
+                              </div>
+
+                              {/* 1-Tap Inline Reassign & Move Day (#5) */}
+                              {isEditing && canManageProjects ? (
+                                <div className="grid grid-cols-2 gap-1.5 rounded-xl border border-[var(--tt-rule-strong)] bg-[var(--tt-surface)] p-2 shadow-[var(--tt-shadow-xs)]">
+                                  <select
+                                    aria-label="Assign owner"
+                                    value={task.assignee?.id ?? ''}
+                                    onChange={(e) => void handleReassign(task, e.target.value)}
+                                    className="min-h-[32px] rounded-lg border border-[var(--tt-rule)] bg-[var(--tt-ground)] px-2 text-[12px] font-medium text-[var(--tt-ink)]"
+                                  >
+                                    <option value="">Unclaimed</option>
+                                    {farmPeople.map((p) => (
+                                      <option key={p.id} value={p.id}>
+                                        {p.preferredName?.trim() || p.fullName}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <select
+                                    aria-label="Move to day"
+                                    value={group.date}
+                                    onChange={(e) =>
+                                      void handleMoveDay(task, group.date, e.target.value)
+                                    }
+                                    className="min-h-[32px] rounded-lg border border-[var(--tt-rule)] bg-[var(--tt-ground)] px-2 text-[12px] font-medium text-[var(--tt-ink)]"
+                                  >
+                                    {groups.map((g) => (
+                                      <option key={g.date} value={g.date}>
+                                        {g.date === today
+                                          ? 'Today'
+                                          : formatFarm(farmDayStart(g.date), 'EEE d MMM')}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
                               ) : null}
                             </li>
                           )
@@ -469,13 +881,32 @@ export function WeekPlanner({
                             </span>
                           ) : null}
                         </div>
-                        <Button
-                          size="sm"
-                          variant="soft"
-                          onClick={() => void handleClaim(task, 'day')}
-                        >
-                          Take it
-                        </Button>
+                        <div className="flex items-center gap-1.5">
+                          {canManageProjects ? (
+                            <select
+                              aria-label={`Assign ${task.title}`}
+                              value=""
+                              onChange={(e) => {
+                                if (e.target.value) void handleReassign(task, e.target.value)
+                              }}
+                              className="min-h-[34px] rounded-xl border border-[var(--tt-rule-strong)] bg-[var(--tt-surface)] px-2 text-[12.5px] font-medium text-[var(--tt-ink-2)]"
+                            >
+                              <option value="">Assign…</option>
+                              {farmPeople.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.preferredName?.trim() || p.fullName}
+                                </option>
+                              ))}
+                            </select>
+                          ) : null}
+                          <Button
+                            size="sm"
+                            variant="soft"
+                            onClick={() => void handleClaim(task, 'day')}
+                          >
+                            Take it
+                          </Button>
+                        </div>
                       </li>
                     ) : (
                       <TaskRow
