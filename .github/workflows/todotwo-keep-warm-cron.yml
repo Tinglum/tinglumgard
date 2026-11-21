@@ -1,0 +1,19 @@
+name: TodoTwo — keep functions warm
+
+# Lightweight keep-warm ping during active farm hours (06:00–21:00 Europe/Oslo)
+# so opening TodoTwo in the barn avoids Netlify cold starts.
+on:
+  schedule:
+    - cron: '*/10 5-20 * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ping TodoTwo login route
+        run: |
+          curl -fsS --max-time 15 -o /dev/null \
+            -w "HTTP %{http_code} in %{time_total}s\n" \
+            "https://xn--tinglumgrd-85a.no/todotwo/login" || true

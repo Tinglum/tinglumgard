@@ -1,3 +1,5 @@
+import * as React from 'react'
+
 import { AppBadge } from '@/components/todotwo/pwa/app-badge'
 import { ConnectionBanner } from '@/components/todotwo/pwa/connection-banner'
 import { TodoTwoShell } from '@/components/todotwo/shell/app-shell'
@@ -11,44 +13,43 @@ import { TODOTWO_BASE } from '@/lib/todotwo/routes'
 export const dynamic = 'force-dynamic'
 
 /**
+ * Evening prompts stream in separately inside <Suspense> so they never add a
+ * sequential round trip before the main page renders.
+ */
+async function EveningPrompts({ personId }: { personId: string }) {
+  const [overdueTasks, nudgeTasks] = await Promise.all([
+    getOverduePrompt(personId),
+    getEndOfDayNudge(personId),
+  ])
+
+  if (overdueTasks.length > 0) {
+    return <OverdueCheck tasks={overdueTasks} />
+  }
+  if (nudgeTasks.length > 0) {
+    return <UnclaimedNudge tasks={nudgeTasks} />
+  }
+  return null
+}
+
+/**
  * Everything behind authentication. The login screen sits outside this group,
  * which is why it can be reached without a session.
- *
- * The connection banner is above the shell rather than inside it: when the data
- * on screen is a saved copy, that has to be the first thing read, before the
- * navigation and before the first task.
- *
- * The two evening questions live here rather than on Today because they have
- * to catch somebody entering the app at all, not somebody who happens to land
- * on one screen. Both return nothing before their hour and nothing once
- * answered, so for most of the day this is two cheap queries that render null.
- *
- * Both are timed in Europe/Oslo, not off the server clock, which is UTC on
- * Netlify. They are checked at render rather than scheduled, so unlike the
- * cron jobs they do not drift by an hour at the clock change.
- *
- * Only one is ever shown. From 23:00 they overlap, and stacking two modals on
- * top of each other would get both dismissed unread. Your own late work comes
- * first: it is the question only you can answer.
  */
 export default async function TodoTwoAppLayout({ children }: { children: React.ReactNode }) {
   const principal = await requireTodoTwoUser(TODOTWO_BASE)
-
-  const [overdueTasks, nudgeTasks] = await Promise.all([
-    getOverduePrompt(principal.person.id),
-    getEndOfDayNudge(principal.person.id),
-  ])
 
   return (
     <>
       <ConnectionBanner />
       <AppBadge />
-      {overdueTasks.length > 0 ? (
-        <OverdueCheck tasks={overdueTasks} />
-      ) : (
-        <UnclaimedNudge tasks={nudgeTasks} />
-      )}
-      <TodoTwoShell personName={displayName(principal.person)} roles={principal.roles} impersonatorName={principal.impersonator ? displayName(principal.impersonator) : null}>
+      <React.Suspense fallback={null}>
+        <EveningPrompts personId={principal.person.id} />
+      </React.Suspense>
+      <TodoTwoShell
+        personName={displayName(principal.person)}
+        roles={principal.roles}
+        impersonatorName={principal.impersonator ? displayName(principal.impersonator) : null}
+      >
         {children}
       </TodoTwoShell>
     </>

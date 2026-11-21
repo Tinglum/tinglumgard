@@ -6,11 +6,11 @@ import {
   Building2,
   CalendarDays,
   CalendarOff,
+  CalendarRange,
   FolderKanban,
   ShoppingBasket,
   Home,
   Handshake,
-  ListTodo,
   Megaphone,
   Menu,
   Settings,
@@ -22,10 +22,10 @@ import {
 import { TODOTWO_BASE } from '@/lib/todotwo/routes'
 import type { TodoTwoRole } from '@/lib/todotwo/auth'
 
+export type NavGroup = 'daily' | 'farm' | 'team'
+
 /**
  * One navigation source for both the mobile tab bar and the desktop sidebar.
- * Later phases add entries here and both surfaces pick them up.
- *
  * `roles: null` means every signed-in person sees it.
  */
 export interface NavItem {
@@ -33,47 +33,60 @@ export interface NavItem {
   label: string
   icon: LucideIcon
   roles: TodoTwoRole[] | null
-  /** Shown in the mobile tab bar. Keep this to four or fewer. */
+  /** Shown in the mobile tab bar. Keep this to four. */
   primary: boolean
+  group: NavGroup
 }
 
+export const NAV_GROUPS: { key: NavGroup; label: string }[] = [
+  { key: 'daily', label: 'Daily' },
+  { key: 'farm', label: 'Farm & Planning' },
+  { key: 'team', label: 'People & Settings' },
+]
+
 export const NAV_ITEMS: NavItem[] = [
-  { href: `${TODOTWO_BASE}/recipes`, label: 'Recipes', icon: BookOpen, roles: null, primary: false },
-  {
-    href: `${TODOTWO_BASE}/groceries`,
-    label: 'Groceries',
-    icon: ShoppingBasket,
-    roles: null,
-    primary: false,
-  },
+  // Daily
   {
     href: TODOTWO_BASE,
     label: 'Today',
     icon: Home,
     roles: null,
     primary: true,
+    group: 'daily',
   },
   {
     href: `${TODOTWO_BASE}/upcoming`,
-    label: 'Upcoming',
-    icon: ListTodo,
+    label: 'Week plan',
+    icon: CalendarRange,
     roles: null,
     primary: true,
+    group: 'daily',
+  },
+  {
+    href: `${TODOTWO_BASE}/roster`,
+    label: 'Roster',
+    icon: UsersRound,
+    roles: null,
+    primary: true,
+    group: 'daily',
   },
   {
     href: `${TODOTWO_BASE}/notifications`,
     label: 'Notifications',
     icon: Bell,
     roles: null,
-    primary: true,
+    primary: false,
+    group: 'daily',
   },
+
+  // Farm & Planning
   {
-    href: `${TODOTWO_BASE}/roster`,
-    label: 'Roster',
-    icon: UsersRound,
-    // Everyone: who's doing what today is farm-wide, not staff-only visibility.
+    href: `${TODOTWO_BASE}/projects`,
+    label: 'Projects',
+    icon: FolderKanban,
     roles: null,
     primary: false,
+    group: 'farm',
   },
   {
     href: `${TODOTWO_BASE}/routines`,
@@ -81,6 +94,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: CalendarDays,
     roles: null,
     primary: false,
+    group: 'farm',
   },
   {
     href: `${TODOTWO_BASE}/swaps`,
@@ -88,20 +102,23 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Handshake,
     roles: null,
     primary: false,
+    group: 'farm',
   },
   {
-    href: `${TODOTWO_BASE}/more`,
-    label: 'More',
-    icon: Menu,
-    roles: null,
-    primary: true,
-  },
-  {
-    href: `${TODOTWO_BASE}/projects`,
-    label: 'Projects',
-    icon: FolderKanban,
+    href: `${TODOTWO_BASE}/groceries`,
+    label: 'Groceries',
+    icon: ShoppingBasket,
     roles: null,
     primary: false,
+    group: 'farm',
+  },
+  {
+    href: `${TODOTWO_BASE}/recipes`,
+    label: 'Recipes',
+    icon: BookOpen,
+    roles: null,
+    primary: false,
+    group: 'farm',
   },
   {
     href: `${TODOTWO_BASE}/announcements`,
@@ -109,6 +126,25 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Megaphone,
     roles: null,
     primary: false,
+    group: 'farm',
+  },
+
+  // People & Settings
+  {
+    href: `${TODOTWO_BASE}/availability`,
+    label: 'Time off',
+    icon: CalendarOff,
+    roles: null,
+    primary: false,
+    group: 'team',
+  },
+  {
+    href: `${TODOTWO_BASE}/skills`,
+    label: 'Skills',
+    icon: Award,
+    roles: null,
+    primary: false,
+    group: 'team',
   },
   {
     href: `${TODOTWO_BASE}/people`,
@@ -116,6 +152,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Users,
     roles: ['super_admin', 'farm_admin', 'coordinator'],
     primary: false,
+    group: 'team',
   },
   {
     href: `${TODOTWO_BASE}/stays`,
@@ -123,6 +160,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: BedDouble,
     roles: ['super_admin', 'farm_admin', 'coordinator'],
     primary: false,
+    group: 'team',
   },
   {
     href: `${TODOTWO_BASE}/accommodation`,
@@ -130,31 +168,23 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Building2,
     roles: ['super_admin', 'farm_admin', 'coordinator'],
     primary: false,
-  },
-  {
-    href: `${TODOTWO_BASE}/availability`,
-    label: 'Time off',
-    icon: CalendarOff,
-    // Everyone: a Workawayer requests their own; staff also see approvals here.
-    roles: null,
-    primary: false,
-  },
-  {
-    href: `${TODOTWO_BASE}/skills`,
-    label: 'Skills',
-    icon: Award,
-    // Everyone: a Workawayer claims their own; staff also verify here.
-    roles: null,
-    primary: false,
+    group: 'team',
   },
   {
     href: `${TODOTWO_BASE}/settings`,
     label: 'Settings',
     icon: Settings,
-    // Everyone: password, passkeys and notifications are personal. The one
-    // staff-only entry (task templates) is filtered inside the page itself.
     roles: null,
     primary: false,
+    group: 'team',
+  },
+  {
+    href: `${TODOTWO_BASE}/more`,
+    label: 'More',
+    icon: Menu,
+    roles: null,
+    primary: true,
+    group: 'team',
   },
 ]
 
@@ -162,12 +192,6 @@ export function navItemsForRoles(roles: TodoTwoRole[]): NavItem[] {
   return NAV_ITEMS.filter((item) => item.roles === null || item.roles.some((r) => roles.includes(r)))
 }
 
-/**
- * Phase 0 ships only the overview. The rest are declared above so the shell is
- * built once, but they are not rendered until the phase that implements them
- * lands — a navigation item that leads nowhere is a placeholder, and Phase 0
- * forbids those.
- */
 export const IMPLEMENTED_HREFS = new Set<string>([
   `${TODOTWO_BASE}/recipes`,
   TODOTWO_BASE,
