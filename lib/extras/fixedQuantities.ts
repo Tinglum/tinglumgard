@@ -6,8 +6,8 @@ export type ExtraQuantityShape = {
 };
 
 const FIXED_EXTRA_QUANTITY_BY_SLUG: Record<string, number> = {
-  spekeskinke: 8,
-  'extra-skinke-speking': 8,
+  spekeskinke: 5,
+  'extra-skinke-speking': 5,
 };
 
 export function getFixedExtraQuantityForSlug(slug?: string | null): number | null {
