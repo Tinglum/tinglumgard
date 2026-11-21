@@ -81,6 +81,39 @@ export function PigSalesV3({ standalone = true }: { standalone?: boolean }) {
     setOfferQuery(carry.toString() ? '&'+carry.toString() : '')
     const slug = params.get('preset')
     if (slug && order.includes(slug)) setSelectedSlug(slug)
+
+    const rebate = params.get('rebate') || carry.get('rebate')
+    const ref = params.get('ref') || carry.get('ref')
+    const eventType = ref ? 'pig_referral_visit' : rebate ? 'pig_campaign_visit' : 'pig_browse'
+    const dedupKey = `pig_track_${eventType}_${ref || rebate || 'direct'}`
+    try {
+      if (!sessionStorage.getItem(dedupKey)) {
+        sessionStorage.setItem(dedupKey, '1')
+        let visitorId = localStorage.getItem('pig_visitor_id')
+        if (!visitorId) {
+          visitorId = Math.random().toString(36).slice(2) + Date.now().toString(36)
+          localStorage.setItem('pig_visitor_id', visitorId)
+        }
+        void fetch('/api/track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          keepalive: true,
+          body: JSON.stringify({
+            eventType,
+            page: window.location.pathname,
+            metadata: {
+              rebate: rebate || null,
+              ref: ref || null,
+              pickup: pickup || null,
+              preset: slug || null,
+              visitorId,
+            },
+          }),
+        }).catch(() => {})
+      }
+    } catch {
+      // ignore storage errors
+    }
   }, [])
 
   useEffect(() => {

@@ -54,6 +54,28 @@ export default function ShareHubPage() {
   const isAmbassador = isPigAmbassadorCode(code);
 
   useEffect(() => {
+    if (!code) return;
+    try {
+      const dedupKey = `pig_track_share_${code}_${via || 'hub'}`;
+      if (!sessionStorage.getItem(dedupKey)) {
+        sessionStorage.setItem(dedupKey, '1');
+        void fetch('/api/track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          keepalive: true,
+          body: JSON.stringify({
+            eventType: 'pig_share_hub_visit',
+            page: '/del',
+            metadata: { ref: code, via: via || null },
+          }),
+        }).catch(() => {});
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, [code, via]);
+
+  useEffect(() => {
     if (!links) return;
     if (via === 'sms' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
       window.location.href = links.sms;

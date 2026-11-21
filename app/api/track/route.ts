@@ -4,11 +4,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth/session';
 import { supabaseAdmin } from '@/lib/supabase/server';
 
+const ANONYMOUS_ALLOWED_EVENTS = new Set([
+  'pig_browse',
+  'pig_campaign_visit',
+  'pig_referral_visit',
+  'pig_share_hub_visit',
+  'pig_checkout_start',
+]);
+
 export async function POST(req: NextRequest) {
   try {
     const session = await getSession();
 
-    if (!session?.userId || session.isAdmin) {
+    if (session?.isAdmin) {
       return NextResponse.json({ ok: true }, { status: 200 });
     }
 
@@ -23,12 +31,16 @@ export async function POST(req: NextRequest) {
       metadata?: Record<string, unknown>;
     };
 
+    if (!session?.userId && !ANONYMOUS_ALLOWED_EVENTS.has(eventType)) {
+      return NextResponse.json({ ok: true }, { status: 200 });
+    }
+
     const { error } = await supabaseAdmin.from('page_events').insert({
       event_type: eventType,
-      customer_id: session.userId,
-      customer_email: session.email ?? null,
-      vipps_sub: session.vippsSub ?? null,
-      page,
+      customer_id: session?.userId ?? null,
+      customer_email: session?.email ?? null,
+      vipps_sub: session?.vippsSub ?? null,
+      page: page.slice(0, 200),
       metadata: metadata ?? null,
     });
 
