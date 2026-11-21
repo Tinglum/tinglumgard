@@ -789,26 +789,11 @@ export function MobileCheckout(props: MobileCheckoutProps) {
                 </button>
               ))}
 
-              {deliveryType === 'farm' && (
-                <button
-                  onClick={() => setFreshDelivery(!freshDelivery)}
-                  className={`w-full rounded-3xl border px-5 py-5 text-left transition-all ${
-                    freshDelivery
-                      ? 'border-[#1E1B16] bg-[#1E1B16] text-white'
-                      : 'border-[#E4DED5] bg-[#FBFAF7] text-[#1E1B16]'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold">{t.checkout.freshDelivery}</p>
-                      <p className={`text-xs ${freshDelivery ? 'text-white/70' : 'text-[#5E5A50]'}`}>
-                        {t.checkout.freshDeliveryDesc}
-                      </p>
-                    </div>
-                    <p className="text-sm font-semibold">+{addonPrices?.fresh || 500} {t.common.currency}</p>
-                  </div>
-                </button>
-              )}
+              <p className="px-1 text-xs text-[#5E5A50]">
+                {lang === 'no'
+                  ? 'Alle kjøttbokser leveres fryst og vakumpakket for best mulig kvalitet.'
+                  : 'All meat boxes are delivered frozen and vacuum-packed for optimal quality.'}
+              </p>
             </div>
           </div>
         </div>

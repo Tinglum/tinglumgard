@@ -13,6 +13,7 @@ import { buildAdminOrderLink, buildCustomerOrderLink } from "@/lib/email/links";
 import { finalizeConfirmedEggOrder } from '@/lib/eggs/order-confirmation'
 import { reservePigBoxOnPayment, reserveChickenHatchesOnPayment } from '@/lib/reservations/reserve-on-payment'
 import { getEggDepositStatus, sendEggDepositConfirmationEmail } from '@/lib/eggs/notifications'
+import { sendPigDepositConfirmationEmails } from '@/lib/orders/notifications'
 import { notifyInventoryOverallocation } from '@/lib/notifications/inventory-overallocation'
 import {
   buildEggOrderLinesHtml,
@@ -770,49 +771,13 @@ export async function POST(request: NextRequest) {
               throw new Error(result.customerReason || result.adminReason || 'No chicken deposit confirmations were sent');
             }
           } else {
-            const displayBoxName = order.mangalitsa_preset?.name_no || order.mangalitsa_preset?.name_en || null;
-            const boxDisplay = displayBoxName || 'Mangalitsa-boks';
-            const discountAmount = order.referral_discount_amount || order.rebate_discount_amount || 0;
-            const discountLabel = order.referral_discount_amount ? 'Vennerabatt' : 'Rabattkode';
-            const rendered = await renderManagedTemplate({
-              templateKey: 'pig.order.deposit.confirmed.customer',
-              locale: 'no',
-              variables: {
-                customer_name: order.customer_name || 'Kunde',
-                order_number: order.order_number,
-                box_label: boxDisplay,
-                ribbe_choice: order.ribbe_choice || 'Ikke valgt',
-                delivery_label: getPigDeliveryLabel(String(order.delivery_type || '')),
-                extras_html: buildPigExtrasHtml(order.extra_products || []),
-                discount_html:
-                  discountAmount > 0
-                    ? `<p><strong>${discountLabel}:</strong> -${formatNok(discountAmount)}</p>`
-                    : '',
-                total_amount_nok: formatNok(order.total_amount),
-                deposit_amount_nok: formatNok(resolvedPayment.amount_nok),
-                remainder_amount_nok: formatNok(order.remainder_amount),
-                order_url: buildOrderUrl(appUrl, 'order', order.id),
-                tip_index: 0,
-              },
-            });
-
-            if (!rendered) {
-              throw new Error('Missing template pig.order.deposit.confirmed.customer');
-            }
-            const dispatchResult = await dispatchEmail({
-              to: customerEmailForSend,
-              subject: rendered.subject,
-              html: rendered.html,
-              classification: 'transactional',
-              templateKey: rendered.templateKey,
+            const pigResult = await sendPigDepositConfirmationEmails({
+              orderId: String(order.id),
               sourcePath: '/api/webhooks/vipps',
-              orderId: order.id,
+              includeAdmin: false,
             });
-            if (dispatchResult.success) {
-              await supabaseAdmin
-                .from('orders')
-                .update({ confirmation_email_sent_at: new Date().toISOString() })
-                .eq('id', order.id);
+            if (!pigResult.ok) {
+              throw new Error(pigResult.reason || 'Failed to send pig deposit confirmation');
             }
           }
         } catch (emailError) {

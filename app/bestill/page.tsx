@@ -1709,38 +1709,11 @@ export default function CheckoutPage() {
                     </div>
                   </div>
 
-                  {deliveryType === 'farm' && (
-                    <div>
-                      <MetaLabel>{t.checkout.extraOptions}</MetaLabel>
-                      <button
-                        onClick={() => setFreshDelivery(!freshDelivery)}
-                        className={cn(
-                          "w-full p-6 text-left border-2 rounded-xl transition-all duration-300 mt-4 group",
-                          freshDelivery
-                            ? "border-neutral-900 bg-neutral-50 shadow-[0_15px_40px_-12px_rgba(0,0,0,0.15)]"
-                            : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-0.5"
-                        )}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            <div className={cn(
-                              "w-5 h-5 rounded border-2 flex items-center justify-center transition-all duration-300",
-                              freshDelivery ? "border-neutral-900 bg-neutral-900 shadow-[0_5px_15px_-5px_rgba(0,0,0,0.3)]" : "border-neutral-200"
-                            )}>
-                              {freshDelivery && <Check className="w-3 h-3 text-white" />}
-                            </div>
-                            <div>
-                              <p className="font-normal text-neutral-900">{t.checkout.freshDelivery}</p>
-                              <p className="text-sm font-light text-neutral-600 mt-1">{t.checkout.freshDeliveryDesc}</p>
-                            </div>
-                          </div>
-                          <span className="text-sm font-light text-neutral-900 tabular-nums">
-                            +{addonPrices?.fresh || 500} kr
-                          </span>
-                        </div>
-                      </button>
-                    </div>
-                  )}
+                  <p className="text-xs text-neutral-500 mt-4">
+                    {lang === 'no'
+                      ? 'Alle kjøttbokser leveres fryst og vakumpakket for best mulig kvalitet og holdbarhet.'
+                      : 'All meat boxes are delivered frozen and vacuum-packed for optimal quality and shelf life.'}
+                  </p>
                 </div>
               </div>
             )}

@@ -259,9 +259,58 @@ async function cancelAbandonedCheckouts(cutoff: string): Promise<ResultEntry[]> 
   const shouldKeepActiveSession = (state: string | undefined, createdAt: string | null | undefined) =>
     isStillActiveSession(state) && (!createdAt || new Date(createdAt) > hardCancelCutoff)
 
-  // --- Pig: NEVER auto-cancel pig orders (owner policy) ---
-  // Unpaid/abandoned pig drafts are left untouched so customers never receive
-  // unexpected cancellation emails when retrying payment.
+  // --- Pig: unpaid draft orders with expired Vipps sessions ---
+  // Paid orders (any completed payment or deposit_paid+) are NEVER auto-cancelled.
+  // If the customer already succeeded with a newer paid pig order, cancel the old
+  // unpaid draft silently so they don't receive a confusing cancellation email.
+  try {
+    const { data: orders } = await supabaseAdmin
+      .from('orders')
+      .select('id, order_number, created_at, customer_name, customer_email, manual_confirmation, box_size, mangalitsa_preset_id, mangalitsa_preset:mangalitsa_box_presets(target_weight_kg), payments(id, vipps_session_id, idempotency_key, status)')
+      .in('status', ['draft', 'pending'])
+      .lt('created_at', cutoff)
+      .limit(50)
+
+    for (const order of orders || []) {
+      if (order.manual_confirmation) continue
+      const orderPayments = (order.payments || []) as Array<{ id: string; vipps_session_id?: string | null; idempotency_key?: string | null; status: string }>
+      if (orderPayments.some((p) => p.status === 'completed')) continue // Never cancel an order with any completed payment
+      const pendingPayment = orderPayments.find((p) => p.status === 'pending')
+      if (!pendingPayment) continue
+
+      try {
+        const session = await resolveVippsSession(pendingPayment)
+        if (session?.sessionState === 'PaymentSuccessful') continue
+        if (shouldKeepActiveSession(session?.sessionState, order.created_at)) continue
+
+        await supabaseAdmin.from('payments').update({ status: 'expired' }).eq('id', pendingPayment.id)
+        await supabaseAdmin.from('orders').update({ status: 'cancelled' }).eq('id', order.id).in('status', ['draft', 'pending'])
+
+        // Check if this customer already has a paid pig order — if so, skip the scary cancellation email
+        const email = String(order.customer_email || '').trim().toLowerCase()
+        let hasActivePaidOrder = false
+        if (email) {
+          const { data: paidSibling } = await supabaseAdmin
+            .from('orders')
+            .select('id')
+            .ilike('customer_email', email)
+            .in('status', ['deposit_paid', 'paid', 'fully_paid', 'ready', 'completed'])
+            .limit(1)
+            .maybeSingle()
+          hasActivePaidOrder = Boolean(paidSibling?.id)
+        }
+
+        if (!hasActivePaidOrder) {
+          await sendOrderCancelledEmail({ scope: 'pig', order, sourcePath: 'cron.reconcile-payments' }).catch((e) => logError('cron-cancel-pig-email', e))
+        }
+
+        results.push({ id: order.id, scope: 'pig', action: 'cancelled', detail: hasActivePaidOrder ? `${order.order_number} (silent: has paid order)` : order.order_number })
+      } catch (err) {
+        logError('cron-cancel-pig', err, { orderId: order.id })
+        results.push({ id: order.id, scope: 'pig', action: 'error', detail: err instanceof Error ? err.message : 'unknown' })
+      }
+    }
+  } catch (err) { logError('cron-cancel-pig-query', err) }
 
   // --- Egg: pending orders with expired Vipps sessions ---
   try {
