@@ -343,8 +343,11 @@ export function PigSalesV3({ standalone = true }: { standalone?: boolean }) {
               })}</ul>}
           </article>
         </div>}
-        <details className={styles.cutExplorer}>
-          <summary>{t('Utforsk hvor stykkene sitter på grisen', 'Explore where each cut comes from')}<ChevronDown size={19} /></summary>
+        <div className={styles.cutExplorer}>
+          <div className={styles.cutExplorerHeader}>
+            <h3>{t('Utforsk hvor stykkene sitter på grisen', 'Explore where each cut comes from')}</h3>
+            <span>{t('Trykk på en del av grisen for å se hvilke stykker som kommer derfra', 'Select a part of the pig to see which cuts come from it')}</span>
+          </div>
           <div className={styles.explorerBody}>
           <div className={styles.diagramColumn}>
             <div className={styles.diagram}>
@@ -377,7 +380,7 @@ export function PigSalesV3({ standalone = true }: { standalone?: boolean }) {
             </div>
           </aside>
         </div>
-        </details>
+        </div>
       </section>
 
       {selected && <section id="din-boks" className={styles.orderSummary} aria-labelledby="order-summary-title">
