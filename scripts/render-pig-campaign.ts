@@ -18,9 +18,11 @@ for (const [index,person] of Array.from(Object.values(people).entries())) {
   const html=renderPigCampaignEmail(template,person as any,{offerUrl:`${PIG_SITE}/?rebate=KUNDEJUL15#bokser`});
   await writeFile(resolve(dir,'rendered',`${index+1}.html`),html);
 }
+let previewCode='JUL26R8K4';
+try { previewCode=(await readFile(resolve(dir,'preview-code.txt'),'utf8')).trim() || previewCode; } catch {}
 for (const delivery of ['farm','trondheim','e6','oslo'] as const) {
   const eggExample=audience.find((r:any)=>r.status==='eligible' && r.purchaseSummary?.includes('rugeegg av '));
-  const html=renderPigCampaignEmail(template,{name:'Kenneth',purchaseSummary:`Eksempel på kundetilpasning: ${eggExample?.purchaseSummary || 'Takk for handelen hos oss i år!'}`,delivery,referralCode:'JUL26KENN0001'},{offerUrl:`${PIG_SITE}/?rebate=KUNDEJUL15#bokser`});
+  const html=renderPigCampaignEmail(template,{name:'Kenneth',purchaseSummary:`Eksempel på kundetilpasning: ${eggExample?.purchaseSummary || 'Takk for handelen hos oss i år!'}`,delivery,referralCode:previewCode},{offerUrl:`${PIG_SITE}/?rebate=KUNDEJUL15#bokser`});
   await writeFile(resolve(dir,`preview-${delivery}.html`),html);
 }
 await writeFile(resolve(dir,'campaign-preview.html'),await readFile(resolve(dir,'preview-oslo.html'),'utf8'));
