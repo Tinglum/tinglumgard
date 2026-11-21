@@ -2,7 +2,7 @@ export const PIG_CAMPAIGN_CODE = 'KUNDEJUL15';
 export const PIG_AMBASSADOR_PREFIX = 'JUL26';
 export const PIG_AMBASSADOR_REWARD_NOK = 250;
 export const PIG_AMBASSADOR_MAX_FRIENDS = 4;
-export const PIG_CAMPAIGN_SUBJECT = 'Ullgris til jul – 15 % rabatt til deg (og 250 kr per venn)';
+export const PIG_CAMPAIGN_SUBJECT = 'Hilsen fra Kenneth på Tinglum Gård';
 export const PIG_SITE = 'https://xn--tinglumgrd-85a.no';
 export const PIG_DISPLAY_HOST = 'tinglumgård.no';
 
