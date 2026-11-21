@@ -5,6 +5,7 @@ import { renderManagedTemplate } from '@/lib/email/render'
 import { buildAdminOrderLink } from '@/lib/email/links'
 import { sendChickenDepositConfirmationEmails } from '@/lib/chickens/notifications'
 import { sendEggDepositConfirmationEmail } from '@/lib/eggs/notifications'
+import { sendPigDepositConfirmationEmails } from '@/lib/orders/notifications'
 import { sendManualConfirmationEmail, type ProductScope } from '@/lib/email/order-resilience'
 import { logError } from '@/lib/logger'
 import { VIPPS_PENDING_EMAIL, APP_BASE_URL } from '@/lib/constants/app'
@@ -123,8 +124,10 @@ export async function GET(request: NextRequest) {
           sent = r.ok && r.customerSent
         } else if (scope === 'egg') {
           sent = await resendEgg(order.id)
+        } else if (scope === 'pig') {
+          const r = await sendPigDepositConfirmationEmails({ orderId: order.id, sourcePath: 'cron.confirmation-email-audit', includeAdmin: false })
+          sent = r.ok && r.customerSent
         }
-        // pig: no automatic resend helper — flagged for manual admin resend below.
       } catch (e) {
         logError('confirmation-audit-resend', e, { scope, orderId: order.id })
       }

@@ -155,6 +155,7 @@ function getPigDeliveryLabel(deliveryType: string): string {
   if (deliveryType === 'pickup_farm') return DELIVERY_LABEL_PICKUP_FARM;
   if (deliveryType === 'pickup_e6') return DELIVERY_LABEL_PICKUP_E6;
   if (deliveryType === 'delivery_trondheim') return DELIVERY_LABEL_DELIVERY_TRONDHEIM;
+  if (deliveryType === 'pickup_oslo') return 'Henting på Majorstuen, Oslo';
   return deliveryType || DELIVERY_LABEL_DEFAULT_PIG;
 }
 
@@ -798,7 +799,7 @@ export async function POST(request: NextRequest) {
             if (!rendered) {
               throw new Error('Missing template pig.order.deposit.confirmed.customer');
             }
-            await dispatchEmail({
+            const dispatchResult = await dispatchEmail({
               to: customerEmailForSend,
               subject: rendered.subject,
               html: rendered.html,
@@ -807,6 +808,12 @@ export async function POST(request: NextRequest) {
               sourcePath: '/api/webhooks/vipps',
               orderId: order.id,
             });
+            if (dispatchResult.success) {
+              await supabaseAdmin
+                .from('orders')
+                .update({ confirmation_email_sent_at: new Date().toISOString() })
+                .eq('id', order.id);
+            }
           }
         } catch (emailError) {
           logError('vipps-webhook-deposit-email', emailError);
@@ -1130,7 +1137,7 @@ export async function POST(request: NextRequest) {
             if (!rendered) {
               throw new Error('Missing template pig.order.remainder.paid.customer');
             }
-            await dispatchEmail({
+            const dispatchResult = await dispatchEmail({
               to: customerEmailForSend,
               subject: rendered.subject,
               html: rendered.html,
@@ -1139,6 +1146,12 @@ export async function POST(request: NextRequest) {
               sourcePath: '/api/webhooks/vipps',
               orderId: order.id,
             });
+            if (dispatchResult.success) {
+              await supabaseAdmin
+                .from('orders')
+                .update({ confirmation_email_sent_at: new Date().toISOString() })
+                .eq('id', order.id);
+            }
           }
         } catch (emailError) {
           logError('vipps-webhook-remainder-email', emailError);

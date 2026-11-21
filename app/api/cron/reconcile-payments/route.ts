@@ -6,6 +6,7 @@ import { reservePigBoxOnPayment, reserveChickenHatchesOnPayment } from '@/lib/re
 import { logError } from '@/lib/logger'
 import { notifyInventoryOverallocation } from '@/lib/notifications/inventory-overallocation'
 import { sendOrderCancelledEmail } from '@/lib/email/order-resilience'
+import { sendPigDepositConfirmationEmails } from '@/lib/orders/notifications'
 
 function getCronAuth(request: NextRequest): {
   ok: boolean
@@ -125,7 +126,7 @@ async function reconcilePendingPayments(cutoff: string): Promise<ResultEntry[]> 
         await supabaseAdmin.from('payments').update({ status: 'completed', paid_at: paidAt, webhook_processed_at: paidAt }).eq('id', p.id).eq('status', 'pending')
         if (p.payment_type === 'deposit') {
           const { data: order } = await supabaseAdmin.from('orders')
-            .select('id, order_number, customer_name, status, box_size, effective_box_size, remainder_amount_nok, mangalitsa_preset:mangalitsa_box_presets(target_weight_kg)')
+            .select('id, order_number, customer_name, status, box_size, effective_box_size, remainder_amount, mangalitsa_preset:mangalitsa_box_presets(target_weight_kg)')
             .eq('id', p.order_id).maybeSingle()
           // Reserve stock at payment (mirrors the webhook), before flipping status.
           if (order) {
@@ -134,8 +135,13 @@ async function reconcilePendingPayments(cutoff: string): Promise<ResultEntry[]> 
               notifyInventoryOverallocation({ orderId: String(order.id), orderNumber: order.order_number || String(order.id), customerName: order.customer_name, errorMessage: resErr instanceof Error ? resErr.message : 'Unknown', source: 'cron-reconcile' }).catch((e) => logError('cron-reserve-pig-notify', e))
             }
           }
-          const status = Number(order?.remainder_amount_nok || 0) <= 0 ? 'fully_paid' : 'deposit_paid'
+          const status = Number(order?.remainder_amount || 0) <= 0 ? 'fully_paid' : 'deposit_paid'
           await supabaseAdmin.from('orders').update({ status }).eq('id', p.order_id)
+          await sendPigDepositConfirmationEmails({
+            orderId: String(p.order_id),
+            sourcePath: 'cron.reconcile-payments',
+            includeAdmin: true,
+          }).catch((e) => logError('cron-reconcile-pig-email', e, { orderId: p.order_id }))
         }
         results.push({ id: p.id, scope: 'pig', action: 'reconciled' })
       } catch (err) {
@@ -253,40 +259,9 @@ async function cancelAbandonedCheckouts(cutoff: string): Promise<ResultEntry[]> 
   const shouldKeepActiveSession = (state: string | undefined, createdAt: string | null | undefined) =>
     isStillActiveSession(state) && (!createdAt || new Date(createdAt) > hardCancelCutoff)
 
-  // --- Pig: draft orders with expired Vipps sessions ---
-  try {
-    const { data: orders } = await supabaseAdmin
-      .from('orders')
-      .select('id, order_number, created_at, customer_name, customer_email, manual_confirmation, box_size, mangalitsa_preset_id, mangalitsa_preset:mangalitsa_box_presets(target_weight_kg), payments(id, vipps_session_id, idempotency_key, status)')
-      .in('status', ['draft', 'pending'])
-      .lt('created_at', cutoff)
-      .limit(50)
-
-    for (const order of orders || []) {
-      if (order.manual_confirmation) continue // Manually confirmed (payment owed) — never auto-cancel
-      const pendingPayment = (order.payments || []).find((p: any) => p.status === 'pending')
-      if (!pendingPayment) continue // No payment = deferred, keep it
-
-      try {
-        const session = await resolveVippsSession(pendingPayment)
-        if (session?.sessionState === 'PaymentSuccessful') continue // succeeded — let reconcile handle it
-        if (shouldKeepActiveSession(session?.sessionState, order.created_at)) continue
-
-        // Session expired/terminated/not found, or stale-active → cancel
-        await supabaseAdmin.from('payments').update({ status: 'expired' }).eq('id', pendingPayment.id)
-        await supabaseAdmin.from('orders').update({ status: 'cancelled' }).eq('id', order.id)
-        await sendOrderCancelledEmail({ scope: 'pig', order, sourcePath: 'cron.reconcile-payments' }).catch((e) => logError('cron-cancel-pig-email', e))
-
-        // No inventory to restore: pig boxes are reserved only at payment, and
-        // this path only cancels never-paid draft/pending orders (unreserved).
-
-        results.push({ id: order.id, scope: 'pig', action: 'cancelled', detail: order.order_number })
-      } catch (err) {
-        logError('cron-cancel-pig', err, { orderId: order.id })
-        results.push({ id: order.id, scope: 'pig', action: 'error', detail: err instanceof Error ? err.message : 'unknown' })
-      }
-    }
-  } catch (err) { logError('cron-cancel-pig-query', err) }
+  // --- Pig: NEVER auto-cancel pig orders (owner policy) ---
+  // Unpaid/abandoned pig drafts are left untouched so customers never receive
+  // unexpected cancellation emails when retrying payment.
 
   // --- Egg: pending orders with expired Vipps sessions ---
   try {
