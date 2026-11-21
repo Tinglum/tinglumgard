@@ -27,7 +27,7 @@ const boxNotes: Record<string, { no: string; en: string; image: string }> = {
   familieboks: { no: 'Til hverdager, helger og en velfylt fryser.', en: 'For weekdays, weekends and a well-stocked freezer.', image: '/recipes/bog-langtid.jpg' },
   julespesial: { no: 'Ribba og resten av de gode julemiddagene.', en: 'Pork belly and all those Christmas dinners.', image: '/recipes/julespesial-julemiddag.jpg' },
   'bbq-steakhouse': { no: 'For deg som helst fyrer opp grillen.', en: 'For those who would rather fire up the grill.', image: '/recipes/tomahawk-chimichurri.jpg' },
-  'premium-cuts': { no: 'Små, ettertraktede stykker. Store muligheter.', en: 'Rare, sought-after cuts. Plenty of possibilities.', image: '/recipes/secreto-plancha.jpg' },
+  'premium-cuts': { no: 'Små, ettertraktede stykker. Store muligheter.', en: 'Rare, sought-after cuts. Plenty of possibilities.', image: '/recipes/premium-cuts-guanciale.jpg' },
 }
 const cuts: Record<Part, { no: string; en: string; textNo: string; textEn: string; methodNo: string; methodEn: string; recipe: string; image: string }> = {
   nakke: { no: 'Nakke', en: 'Collar', textNo: 'God marmorering og mye smak. Nakkekam kan stekes hel, grilles i skiver eller spekes til coppa.', textEn: 'Rich marbling and plenty of flavour. Roast it whole, grill thick slices or cure it as coppa.', methodNo: 'Grill eller langtidsstek', methodEn: 'Grill or slow-roast', recipe: 'neck-steak', image: '/recipes/neck-steak.jpg' },
