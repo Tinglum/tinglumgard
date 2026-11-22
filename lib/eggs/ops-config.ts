@@ -28,6 +28,7 @@ export interface EggOpsConfig {
   forecastLongHorizonBufferEggs: number
   forecastShortHorizonWeeks: number
   forecastExpectedAdditions: JsonMap
+  seasonOpenDate: string | null
   timezone: string
   defaultLanguage: 'no' | 'en'
   lowStockThresholds: JsonMap
@@ -89,6 +90,22 @@ function asStringArray(value: unknown, fallback: string[]): string[] {
   return fallback
 }
 
+function asIsoDate(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : null
+}
+
+export async function getEggSeasonOpenDate(): Promise<string | null> {
+  const { data } = await supabaseAdmin
+    .from('app_config')
+    .select('value')
+    .eq('key', 'egg_season_open_date')
+    .maybeSingle()
+
+  return asIsoDate(data?.value)
+}
+
 export async function getEggOpsConfig(): Promise<EggOpsConfig> {
   const keys = [
     'egg_forecast_window_days',
@@ -99,6 +116,7 @@ export async function getEggOpsConfig(): Promise<EggOpsConfig> {
     'egg_forecast_long_horizon_buffer_eggs',
     'egg_forecast_short_horizon_weeks',
     'egg_forecast_expected_additions',
+    'egg_season_open_date',
     'egg_forecast_timezone',
     'egg_low_stock_thresholds',
     'egg_ops_default_language',
@@ -139,6 +157,7 @@ export async function getEggOpsConfig(): Promise<EggOpsConfig> {
       asInt(map.get('egg_forecast_short_horizon_weeks'), DEFAULT_SHORT_HORIZON_WEEKS)
     ),
     forecastExpectedAdditions: asObject(map.get('egg_forecast_expected_additions')),
+    seasonOpenDate: asIsoDate(map.get('egg_season_open_date')),
     timezone: asString(map.get('egg_forecast_timezone'), DEFAULT_FORECAST_TIMEZONE),
     lowStockThresholds: asObject(map.get('egg_low_stock_thresholds')),
     defaultLanguage: languageRaw === 'en' ? 'en' : 'no',

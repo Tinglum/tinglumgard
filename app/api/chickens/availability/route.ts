@@ -29,7 +29,25 @@ export async function GET() {
       return NextResponse.json({ error: hatchesError.message }, { status: 500 })
     }
 
-    const calendar = buildAvailabilityCalendar(breeds || [], hatches || [], 16)
+    const { data: configRows } = await supabaseAdmin
+      .from('app_config')
+      .select('key, value')
+      .in('key', ['chicken_spring_open_date', 'chicken_spring_cohort_hatch_from'])
+
+    const configMap = new Map((configRows || []).map((row) => [row.key, row.value]))
+    const springOpenDate =
+      typeof configMap.get('chicken_spring_open_date') === 'string'
+        ? String(configMap.get('chicken_spring_open_date')).trim()
+        : null
+    const springCohortHatchFrom =
+      typeof configMap.get('chicken_spring_cohort_hatch_from') === 'string'
+        ? String(configMap.get('chicken_spring_cohort_hatch_from')).trim()
+        : null
+
+    const calendar = buildAvailabilityCalendar(breeds || [], hatches || [], 36, {
+      springOpenDate,
+      springCohortHatchFrom,
+    })
 
     return NextResponse.json(calendar)
   } catch (error: any) {

@@ -10,6 +10,7 @@ import { useCart } from '@/contexts/eggs/EggCartContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatPrice, formatDate } from '@/lib/eggs/utils'
 import { GlassCard } from '@/components/eggs/GlassCard'
+import { SpringSeasonNotice } from '@/components/eggs/SpringSeasonNotice'
 import { WeekSelector } from '@/components/eggs/WeekSelector'
 import { QuantitySelector } from '@/components/eggs/QuantitySelector'
 import { ArrowLeft, Info, AlertTriangle, Loader2, Mail } from 'lucide-react'
@@ -662,6 +663,7 @@ export default function BreedDetailPage() {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="lg:sticky lg:top-24 lg:self-start"
           >
+            <SpringSeasonNotice variant="compact" className="mb-4" />
             <WeekSelector inventory={inventory} accentColor={localizedBreed.accentColor} onSelectWeek={handleWeekSelect} />
           </motion.div>
         </div>

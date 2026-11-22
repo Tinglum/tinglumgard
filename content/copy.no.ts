@@ -671,6 +671,16 @@
       deposit: "Forskudd",
       dueNowSummary: "Å betale nå",
     },
+    springSeasonNotice: {
+      badge: "Vårsesong 2027 – Forhåndsbestilling",
+      title: "Vinterpause nå – åpent for bestilling fra 1. mars 2027",
+      body: "Vi tar ikke imot eggbestillinger i vinter, men du kan allerede nå forhåndsbestille rugeegg med levering fra uke 9 (1. mars 2027).",
+      frostTitle: "Frostfare tidlig på våren",
+      frostBody: "Ved tidlig vårlevering er det risiko for kuldegrader og frost under transport eller før utsending. Vi kan måtte utsette sendingen ved sprengkulde, og forsendelse skjer med forbehold om værforhold.",
+      productionTitle: "Eggproduksjon er ikke garantert",
+      productionBody: "Verpingen etter vinteren styres av lys, temperatur og dyrenes form. Ukekvotene er foreløpige estimater – vi kan ikke garantere eggproduksjonen, og ved lavere produksjon kan bestillingen bli flyttet til en senere uke eller refundert.",
+      compactBody: "Vårbestilling fra 1. mars 2027: Tidlig på våren er det frostfare under transport, og eggproduksjon kan ikke garanteres. Ved kulde eller lavere verping kan sending bli utsatt, flyttet eller refundert.",
+    },
     confirmation: {
       orderNotFoundTitle: "Fant ingen ordre",
       orderNotFoundDescription: "Bestillingen ble ikke funnet.",

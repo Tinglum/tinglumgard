@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getDayBeforeOfferAvailabilityForInventoryRows } from '@/lib/eggs/day-before-offer-availability'
+import { getEggSeasonOpenDate } from '@/lib/eggs/ops-config'
 import { supabaseServer } from '@/lib/supabase/server'
 import { logError } from '@/lib/logger'
 
@@ -13,11 +14,16 @@ export async function GET(request: Request) {
     const weekParam = searchParams.get('week')
     const stockMode = searchParams.get('stock_mode')
 
+    const todayStr = new Date().toISOString().split('T')[0]
+    const seasonOpenDate = await getEggSeasonOpenDate()
+    const minDeliveryMonday =
+      seasonOpenDate && seasonOpenDate > todayStr ? seasonOpenDate : todayStr
+
     let query = supabaseServer
       .from('egg_inventory')
       .select('*, egg_breeds(*)')
       .in('status', ['open', 'sold_out'])
-      .gte('delivery_monday', new Date().toISOString().split('T')[0])
+      .gte('delivery_monday', minDeliveryMonday)
       .order('delivery_monday')
 
     if (breedId) {

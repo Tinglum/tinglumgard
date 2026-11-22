@@ -43,16 +43,10 @@ type WeekSelectorCopy = {
   statusNotScheduled: string
 }
 
-const END_DATE = new Date('2026-08-01')
-
 export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelectorProps) {
   const { language, t } = useLanguage()
   const copy = t.eggs.weekSelector as WeekSelectorCopy
   const [activeMonthKey, setActiveMonthKey] = useState<string | null>(null)
-  const endDateLabel = END_DATE.toLocaleDateString(language === 'no' ? 'nb-NO' : 'en-GB', {
-    day: 'numeric',
-    month: 'long',
-  })
 
   const inventoryByDate = useMemo(() => {
     const map = new Map<string, WeekInventory>()
@@ -62,10 +56,27 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
     return map
   }, [inventory])
 
-  const months = useMemo(() => {
+  const { months, endDate } = useMemo(() => {
     const now = new Date()
-    const startMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-    const endMonth = new Date(END_DATE.getFullYear(), END_DATE.getMonth(), 1)
+    let startMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    let endMonth = new Date(now.getFullYear(), now.getMonth() + 5, 1)
+    let latestDate = endMonth
+
+    if (inventory.length > 0) {
+      let minTime = Infinity
+      let maxTime = -Infinity
+      for (const week of inventory) {
+        const time = week.deliveryMonday.getTime()
+        if (time < minTime) minTime = time
+        if (time > maxTime) maxTime = time
+      }
+      const earliest = new Date(minTime)
+      const latest = new Date(maxTime)
+      startMonth = new Date(earliest.getUTCFullYear(), earliest.getUTCMonth(), 1)
+      endMonth = new Date(latest.getUTCFullYear(), latest.getUTCMonth(), 1)
+      latestDate = new Date(latest.getUTCFullYear(), latest.getUTCMonth() + 1, 0)
+    }
+
     const monthList: { key: string; year: number; month: number; monthDate: Date; totalEggs: number; availableWeeks: number }[] = []
     const cursor = new Date(startMonth)
 
@@ -88,8 +99,14 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
       cursor.setMonth(cursor.getMonth() + 1)
     }
 
-    return monthList
-  }, [inventoryByDate])
+    return { months: monthList, endDate: latestDate }
+  }, [inventory, inventoryByDate])
+
+  const endDateLabel = endDate.toLocaleDateString(language === 'no' ? 'nb-NO' : 'en-GB', {
+    day: 'numeric',
+    month: 'long',
+    ...(endDate.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' as const } : {}),
+  })
 
   const activeMonth = months.find((month) => month.key === activeMonthKey) || null
 
@@ -218,7 +235,7 @@ export function WeekSelector({ inventory, accentColor, onSelectWeek }: WeekSelec
             {chunk(buildCalendarCells(activeMonth.year, activeMonth.month, inventoryByDate), 7)
               .filter((row) => {
                 const monday = getRowMonday(row)
-                return monday ? monday.getMonth() === activeMonth.month : false
+                return monday ? monday.getUTCMonth() === activeMonth.month : false
               })
               .map((row, rowIndex) => {
                 const rowMonday = getRowMonday(row)
@@ -438,8 +455,10 @@ function getMondaysInMonth(year: number, month: number): Date[] {
 }
 
 function formatMonthTitle(date: Date, language: Language): string {
+  const showYear = date.getFullYear() !== new Date().getFullYear()
   return new Intl.DateTimeFormat(language === 'no' ? 'nb-NO' : 'en-GB', {
     month: 'long',
+    ...(showYear ? { year: 'numeric' as const } : {}),
   }).format(date)
 }
 

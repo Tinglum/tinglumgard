@@ -33,6 +33,7 @@
  */
 
 import { supabaseAdmin } from '@/lib/supabase/server'
+import { getEggSeasonOpenDate } from '@/lib/eggs/ops-config'
 import { logError } from '@/lib/logger'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -384,7 +385,12 @@ async function writeInventory(params: {
   isEstimate: boolean
   divergenceAlert: boolean
   divergencePct: number | null
+  seasonOpenDate?: string | null
 }) {
+  const isBeforeSeasonOpen = Boolean(
+    params.seasonOpenDate && params.deliveryMonday < params.seasonOpenDate
+  )
+
   const { data: existing } = await supabaseAdmin
     .from('egg_inventory')
     .select('id, eggs_allocated, manual_override, status')
@@ -415,7 +421,7 @@ async function writeInventory(params: {
   }
 
   const prevStatus = (existing?.status ?? 'open') as string
-  const status = prevStatus === 'closed' ? 'closed'
+  const status = (isBeforeSeasonOpen || prevStatus === 'closed') ? 'closed'
     : safeAvailable < eggsAllocated ? 'locked'
     : safeAvailable <= eggsAllocated ? 'sold_out'
     : 'open'
@@ -450,7 +456,7 @@ async function writeInventory(params: {
         forecast_source: 'auto',
         manual_override: false,
         manual_adjustment: 0,
-        status: safeAvailable > 0 ? 'open' : 'sold_out',
+        status: isBeforeSeasonOpen ? 'closed' : (safeAvailable > 0 ? 'open' : 'sold_out'),
         is_estimate: params.isEstimate,
         divergence_alert: params.divergenceAlert,
         divergence_pct: params.divergencePct,
@@ -480,8 +486,11 @@ export async function recomputeForecastForBreed(params: {
 
   if (!breed) return { ok: false, reason: 'breed_not_found' as const }
 
-  // 2. Flock event cutoff
-  const cutoffDate = await getFlockEventCutoff(breedId, asOfDate)
+  // 2. Flock event cutoff & season open date
+  const [cutoffDate, seasonOpenDate] = await Promise.all([
+    getFlockEventCutoff(breedId, asOfDate),
+    getEggSeasonOpenDate(),
+  ])
 
   // 3. Load all relevant collection data
   const asOf = new Date(`${asOfDate}T00:00:00`)
@@ -591,6 +600,7 @@ export async function recomputeForecastForBreed(params: {
       isEstimate,
       divergenceAlert,
       divergencePct,
+      seasonOpenDate,
     })
 
     // 10. Accuracy log

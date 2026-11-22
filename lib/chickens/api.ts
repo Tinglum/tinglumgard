@@ -44,6 +44,11 @@ export function mapHatch(row: any): ChickenHatch {
   }
 }
 
+export interface ChickenAvailabilityOptions {
+  springOpenDate?: string | null
+  springCohortHatchFrom?: string | null
+}
+
 /**
  * Build availability calendar for the next N weeks.
  * For each week, for each active hatch, compute age, price, and available count.
@@ -51,11 +56,14 @@ export function mapHatch(row: any): ChickenHatch {
 export function buildAvailabilityCalendar(
   breeds: any[],
   hatches: any[],
-  weeksAhead: number = 16
+  weeksAhead: number = 16,
+  options?: ChickenAvailabilityOptions
 ): ChickenWeekAvailability[] {
   const now = new Date()
   const currentWeek = getISOWeekNumber(now)
   const currentYear = now.getFullYear()
+  const springOpenDate = options?.springOpenDate || null
+  const springCohortHatchFrom = options?.springCohortHatchFrom || '2026-12-01'
 
   const breedMap = new Map<string, any>()
   for (const breed of breeds) {
@@ -75,6 +83,7 @@ export function buildAvailabilityCalendar(
     }
 
     const pickupMonday = getMondayOfWeek(targetYear, targetWeek)
+    const pickupMondayStr = pickupMonday.toLocaleDateString('sv-SE', { timeZone: 'Europe/Oslo' })
 
     const breedAvailabilities: ChickenWeekAvailability['breeds'] = []
 
@@ -89,11 +98,24 @@ export function buildAvailabilityCalendar(
 
     for (const breed of breeds) {
       if (!breed.active) continue
+      const isNonAyam = String(breed.slug || '').toLowerCase() !== 'ayam-cemani'
+      if (springOpenDate && isNonAyam && pickupMondayStr < springOpenDate) {
+        continue
+      }
+
       const breedHatches = hatchesByBreed.get(breed.id) || []
 
       const hatchEntries: ChickenWeekAvailability['breeds'][0]['hatches'] = []
 
       for (const hatch of breedHatches) {
+        if (
+          springOpenDate &&
+          String(hatch.hatch_date) >= springCohortHatchFrom &&
+          pickupMondayStr < springOpenDate
+        ) {
+          continue
+        }
+
         const ageWeeks = getAgeWeeks(hatch.hatch_date, pickupMonday)
         if (ageWeeks < 1) continue // Only bookable from 1 week of age
 
@@ -153,7 +175,7 @@ export function buildAvailabilityCalendar(
     calendar.push({
       weekNumber: targetWeek,
       year: targetYear,
-      pickupMonday: pickupMonday.toLocaleDateString('sv-SE', { timeZone: 'Europe/Oslo' }),
+      pickupMonday: pickupMondayStr,
       breeds: breedAvailabilities,
     })
   }

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { GlassCard } from '@/components/eggs/GlassCard'
+import { SpringSeasonNotice } from '@/components/eggs/SpringSeasonNotice'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { EggJourney } from '@/components/farm/FarmJourney'
 import { useOrder } from '@/contexts/eggs/EggOrderContext'
@@ -133,6 +134,8 @@ export default function EggDeliveryPage() {
             {t.eggs.common.backToCart}
           </Link>
         </div>
+
+        <SpringSeasonNotice variant="compact" />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-4">

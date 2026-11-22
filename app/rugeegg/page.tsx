@@ -8,6 +8,7 @@ import { useLanguage } from '@/contexts/LanguageContext'
 import { BrowseMode } from '@/lib/eggs/types'
 import { formatPrice, formatDate } from '@/lib/eggs/utils'
 import { GlassCard } from '@/components/eggs/GlassCard'
+import { SpringSeasonNotice } from '@/components/eggs/SpringSeasonNotice'
 import { ArrowRight, Loader2, Mail } from 'lucide-react'
 import { buildWeekAvailability, fetchBreeds, fetchInventory } from '@/lib/eggs/api'
 import { localizeBreeds } from '@/lib/eggs/localize'
@@ -501,6 +502,7 @@ export default function HomePage() {
           </div>
 
           <div className="mb-16 text-left">
+            <SpringSeasonNotice className="mb-8" />
             <div className="min-w-0">
               <div className="mb-8 flex justify-center lg:justify-start">
                 <div className="inline-flex glass-light rounded-xl p-1">

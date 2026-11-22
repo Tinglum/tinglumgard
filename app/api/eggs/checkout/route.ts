@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
+import { getEggSeasonOpenDate } from '@/lib/eggs/ops-config'
 import { logError } from '@/lib/logger'
 import { VIPPS_PENDING_EMAIL } from '@/lib/constants'
 
@@ -79,6 +80,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Orders are closed for this delivery week' }, { status: 400 })
     }
 
+    const seasonOpenDate = await getEggSeasonOpenDate()
+    if (seasonOpenDate && String(deliveryWeek.delivery_monday) < seasonOpenDate) {
+      return NextResponse.json({ error: 'Orders are closed for the winter season' }, { status: 400 })
+    }
+
     const requiredBaseQty = (slug: string) => (slug === 'ayam-cemani' ? 6 : 10)
     const totalEggs = items.reduce((sum, item) => sum + item.quantity, 0)
     const hasBaseQuantity = items.some((item) => {
@@ -102,6 +108,10 @@ export async function POST(request: NextRequest) {
       const inventory = inventoryMap.get(item.inventoryId)
       if (!inventory) {
         return NextResponse.json({ error: 'Inventory not found' }, { status: 404 })
+      }
+
+      if (inventory.status !== 'open') {
+        return NextResponse.json({ error: 'Orders are closed for this delivery week' }, { status: 400 })
       }
 
       if (inventory.breed_id !== item.breedId) {

@@ -671,6 +671,16 @@
       deposit: "Deposit",
       dueNowSummary: "Due now",
     },
+    springSeasonNotice: {
+      badge: "Spring 2027 – Pre-order",
+      title: "Winter pause – orders open for delivery from March 1, 2027",
+      body: "We are not taking hatching egg orders during winter, but pre-orders are open for delivery starting Week 9 (March 1, 2027).",
+      frostTitle: "Freezing risk in early spring",
+      frostBody: "Early spring shipments carry a risk of freezing temperatures during transit or prior to dispatch. Shipments may be delayed during cold snaps, and delivery is subject to weather conditions.",
+      productionTitle: "Egg production is not guaranteed",
+      productionBody: "Spring laying depends on daylight, temperature, and flock condition. Weekly quotas are preliminary estimates — egg production is not guaranteed, and orders may be moved to a later week or refunded if production is lower than expected.",
+      compactBody: "Spring pre-order from March 1, 2027: Early spring carries a freezing risk during transit, and egg production is not guaranteed. Cold weather or lower laying may require rescheduling or a refund.",
+    },
     confirmation: {
       orderNotFoundTitle: "Order not found",
       orderNotFoundDescription: "We could not find your order.",

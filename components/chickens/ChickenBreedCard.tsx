@@ -155,13 +155,12 @@ const BREED_PLACEHOLDER_IMAGES: Record<string, string> = {
 }
 
 const BREED_REAL_IMAGES: Record<string, string> = {
-  'ayam-cemani': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/Poule_cemani.jpg/640px-Poule_cemani.jpg',
-  'jersey-giant': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7f/OntarioCountyFair2018JerseyGiantCockerel.jpg/640px-OntarioCountyFair2018JerseyGiantCockerel.jpg',
-  maran: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/Cuckoo_Marans.jpg/640px-Cuckoo_Marans.jpg',
-  'cream-legbar': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Cream_Legbar.jpg/640px-Cream_Legbar.jpg',
-  silverudds: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Silveruddsbl%C3%A5_hen.jpg/640px-Silveruddsbl%C3%A5_hen.jpg',
-  'silverudds-bla': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Silveruddsbl%C3%A5_hen.jpg/640px-Silveruddsbl%C3%A5_hen.jpg',
-  'silverudds-blue': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Silveruddsbl%C3%A5_hen.jpg/640px-Silveruddsbl%C3%A5_hen.jpg',
+  'ayam-cemani': '/chickens/ayam-cemani.jpg',
+  maran: '/chickens/maran.jpg',
+  'cream-legbar': '/chickens/cream-legbar.jpg',
+  silverudds: '/chickens/silverudds.jpg',
+  'silverudds-bla': '/chickens/silverudds.jpg',
+  'silverudds-blue': '/chickens/silverudds.jpg',
 }
 
 const DEFAULT_PLACEHOLDER_IMAGE =

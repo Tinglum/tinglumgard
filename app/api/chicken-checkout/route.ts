@@ -124,6 +124,21 @@ export async function POST(request: NextRequest) {
     const pickupMonday = getMondayOfWeek(body.pickupYear, body.pickupWeek)
     const pickupMondayStr = pickupMonday.toISOString().split('T')[0]
 
+    const { data: chickenConfigRows } = await supabaseAdmin
+      .from('app_config')
+      .select('key, value')
+      .in('key', ['chicken_spring_open_date', 'chicken_spring_cohort_hatch_from'])
+
+    const chickenConfigMap = new Map((chickenConfigRows || []).map((row) => [row.key, row.value]))
+    const springOpenDate =
+      typeof chickenConfigMap.get('chicken_spring_open_date') === 'string'
+        ? String(chickenConfigMap.get('chicken_spring_open_date')).trim()
+        : null
+    const springCohortHatchFrom =
+      typeof chickenConfigMap.get('chicken_spring_cohort_hatch_from') === 'string'
+        ? String(chickenConfigMap.get('chicken_spring_cohort_hatch_from')).trim()
+        : '2026-12-01'
+
     const computedLines: Array<{
       hatchId: string
       breedId: string
@@ -146,6 +161,19 @@ export async function POST(request: NextRequest) {
       const breed = hatch.chicken_breeds
       if (!breed || breed.id !== item.breedId) {
         return NextResponse.json({ error: 'Breed mismatch for one or more line items' }, { status: 400 })
+      }
+
+      if (!breed.active) {
+        return NextResponse.json({ error: `${breed.name} is no longer available for ordering` }, { status: 400 })
+      }
+
+      const isNonAyam = String(breed.slug || '').toLowerCase() !== 'ayam-cemani'
+      const isSpringCohort = Boolean(springOpenDate && String(hatch.hatch_date) >= springCohortHatchFrom)
+      if (springOpenDate && (isNonAyam || isSpringCohort) && pickupMondayStr < springOpenDate) {
+        return NextResponse.json(
+          { error: `${breed.name} is open for pickup starting ${springOpenDate}` },
+          { status: 400 }
+        )
       }
 
       if (Number(hatch.available_hens) < item.quantityHens) {
