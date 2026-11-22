@@ -765,12 +765,12 @@ export function WeekPlanner({
                     scope === 'unclaimed' ? (
                       <li
                         key={task.id}
-                        className="flex items-center justify-between gap-3 border-b border-[var(--tt-rule)] py-3 last:border-b-0"
+                        className="flex flex-col gap-2.5 border-b border-[var(--tt-rule)] py-3.5 last:border-b-0 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
                       >
                         <div className="min-w-0 flex-1">
                           <Link
                             href={`${TODOTWO_BASE}/tasks/${task.id}`}
-                            className="block truncate text-[14.5px] font-medium text-[var(--tt-ink)] hover:text-[var(--tt-accent)]"
+                            className="block text-[15px] font-medium leading-snug text-[var(--tt-ink)] hover:text-[var(--tt-accent)]"
                           >
                             {task.title}
                           </Link>
@@ -781,7 +781,7 @@ export function WeekPlanner({
                             </span>
                           ) : null}
                         </div>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex shrink-0 items-center gap-2">
                           {canManageProjects ? (
                             <select
                               aria-label={`Assign ${task.title}`}
@@ -789,7 +789,7 @@ export function WeekPlanner({
                               onChange={(e) => {
                                 if (e.target.value) void handleReassign(task, e.target.value)
                               }}
-                              className="min-h-[34px] rounded-xl border border-[var(--tt-rule-strong)] bg-[var(--tt-surface)] px-2 text-[12.5px] font-medium text-[var(--tt-ink-2)]"
+                              className="min-h-[36px] flex-1 rounded-xl border border-[var(--tt-rule-strong)] bg-[var(--tt-surface)] px-2.5 text-[13px] font-medium text-[var(--tt-ink-2)] sm:flex-none"
                             >
                               <option value="">Assign…</option>
                               {farmPeople.map((p) => (
@@ -846,7 +846,7 @@ export function WeekPlanner({
                   <div className="min-w-0 flex-1">
                     <Link
                       href={`${TODOTWO_BASE}/tasks/${task.id}`}
-                      className="block truncate text-[14px] font-medium text-[var(--tt-ink)] hover:text-[var(--tt-accent)]"
+                      className="block text-[14.5px] font-medium leading-snug text-[var(--tt-ink)] hover:text-[var(--tt-accent)]"
                     >
                       {task.title}
                     </Link>
