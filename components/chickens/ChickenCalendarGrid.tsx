@@ -146,6 +146,8 @@ export function ChickenCalendarGrid({ calendar, onSelectWeek, selectedWeekKey }:
   }
 
   const activeMonth = monthBuckets.find((month) => month.key === activeMonthKey) || monthBuckets[0]
+  const springMonthBucket = monthBuckets.find((month) => month.key >= '2027-05') || null
+  const isViewingPreSpring = Boolean(springMonthBucket && activeMonth && activeMonth.key < '2027-05')
   const pages = chunkIntoPages(activeMonth?.weeks || [], 4)
   const clampedPage = Math.min(activePage, Math.max(0, pages.length - 1))
   const currentWeeks = pages[clampedPage] || []
@@ -164,6 +166,35 @@ export function ChickenCalendarGrid({ calendar, onSelectWeek, selectedWeekKey }:
 
   return (
     <div className="space-y-4">
+      <div className="rounded-xl border border-amber-200/90 bg-amber-50/80 px-4 py-3.5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <p className="text-sm font-semibold text-amber-950">
+              {lang === 'en'
+                ? 'Winter & Spring 2027 availability'
+                : 'Tilgjengelighet vinter og vår 2027'}
+            </p>
+            <p className="text-xs sm:text-sm text-amber-900/90 leading-relaxed">
+              {lang === 'en'
+                ? 'Now through April 2027: only Ayam Cemani is open for ordering. From May 1, 2027 (Week 18): all 4 breeds (Silverudds Blue, Maran, Cream Legbar, and Ayam Cemani) open with 10-, 14-, and 18-week-old chickens.'
+                : 'Nå til og med april 2027: kun Ayam Cemani er åpen for bestilling. Fra 1. mai 2027 (uke 18): alle 4 raser (Silverudds Blue, Maran, Cream Legbar og Ayam Cemani) åpner med 10, 14 og 18 uker gamle kyllinger.'}
+            </p>
+          </div>
+          {springMonthBucket && isViewingPreSpring && (
+            <button
+              type="button"
+              onClick={() => {
+                setActiveMonthKey(springMonthBucket.key)
+                setActivePage(0)
+              }}
+              className="shrink-0 self-start sm:self-center rounded-lg bg-neutral-900 px-3.5 py-2 text-xs font-medium text-white hover:bg-neutral-800 transition-colors"
+            >
+              {lang === 'en' ? 'View May 2027 release →' : 'Vis vårslipp (mai 2027) →'}
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="rounded-xl border border-neutral-200 bg-white px-4 py-3">
         <p className="text-sm font-medium text-neutral-900">{interactionTitle}</p>
         <p className="mt-1 text-xs text-neutral-600">{interactionHint}</p>
@@ -298,6 +329,23 @@ export function ChickenCalendarGrid({ calendar, onSelectWeek, selectedWeekKey }:
                     <div className="text-sm font-semibold text-neutral-900">{ageText}</div>
                   </div>
                 </div>
+
+                {week.breeds.length > 0 && (
+                  <div className="mt-2.5 flex flex-wrap gap-1">
+                    {week.breeds.map((b) => (
+                      <span
+                        key={b.breedId}
+                        className="inline-flex items-center gap-1 rounded-md border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[11px] font-medium text-neutral-700"
+                      >
+                        <span
+                          className="h-1.5 w-1.5 rounded-full"
+                          style={{ backgroundColor: b.accentColor || '#6B7280' }}
+                        />
+                        {b.breedName}
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 {!isDisabled && (
                   <div className="mt-3 border-t border-neutral-200 pt-2 text-xs font-medium text-neutral-800">

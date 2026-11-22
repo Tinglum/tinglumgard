@@ -108,11 +108,11 @@ export function buildAvailabilityCalendar(
       const hatchEntries: ChickenWeekAvailability['breeds'][0]['hatches'] = []
 
       for (const hatch of breedHatches) {
-        if (
-          springOpenDate &&
-          String(hatch.hatch_date) >= springCohortHatchFrom &&
-          pickupMondayStr < springOpenDate
-        ) {
+        const isSpringCohort = String(hatch.hatch_date) >= springCohortHatchFrom
+        if (springOpenDate && isSpringCohort && pickupMondayStr < springOpenDate) {
+          continue
+        }
+        if (springOpenDate && !isSpringCohort && pickupMondayStr >= springOpenDate) {
           continue
         }
 

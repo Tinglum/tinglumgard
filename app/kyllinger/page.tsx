@@ -309,8 +309,8 @@ export default function KyllingerPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-              {Array.from({ length: 5 }).map((_, idx) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {Array.from({ length: 4 }).map((_, idx) => (
                 <div key={`breed-skeleton-${idx}`} className="rounded-xl border border-neutral-200 bg-white h-44" />
               ))}
             </div>
@@ -329,7 +329,7 @@ export default function KyllingerPage() {
               <h2 className="text-2xl font-light text-neutral-900 mb-4">
                 {chickens.breedsTitle}
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {breeds.map((breed: any) => (
                   <ChickenBreedCard key={breed.id} breed={breed} />
                 ))}

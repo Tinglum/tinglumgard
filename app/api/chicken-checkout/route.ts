@@ -175,6 +175,12 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         )
       }
+      if (springOpenDate && !isSpringCohort && pickupMondayStr >= springOpenDate) {
+        return NextResponse.json(
+          { error: `Please select a Spring 2027 hatch for pickup from ${springOpenDate} onward` },
+          { status: 400 }
+        )
+      }
 
       if (Number(hatch.available_hens) < item.quantityHens) {
         return NextResponse.json({ error: `Not enough hens available for ${breed.name}` }, { status: 400 })
