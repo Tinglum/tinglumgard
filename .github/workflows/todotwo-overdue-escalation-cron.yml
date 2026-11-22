@@ -1,8 +1,11 @@
 name: TodoTwo Overdue Escalation Cron
 
 on:
-  schedule:
-    - cron: "0 */3 * * *"
+  # Scheduled execution moved to Cloudflare Worker (cloudflare/cron-worker / tinglumgard-crons)
+
+  # schedule:
+
+  # - cron: "0 */3 * * *"
   workflow_dispatch:
 
 jobs:

@@ -1,8 +1,11 @@
 name: TodoTwo Notifications Cron
 
 on:
-  schedule:
-    - cron: "*/15 * * * *"
+  # Scheduled execution moved to Cloudflare Worker (cloudflare/cron-worker / tinglumgard-crons)
+
+  # schedule:
+
+  # - cron: "*/15 * * * *"
   workflow_dispatch:
 
 jobs:

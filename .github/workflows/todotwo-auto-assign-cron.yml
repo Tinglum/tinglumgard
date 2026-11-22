@@ -5,8 +5,11 @@ name: TodoTwo Auto Assign Cron
 # way round would silently leave the far edge of the window empty, which is
 # the exact thing this job is for.
 on:
-  schedule:
-    - cron: "0 5 * * *"
+  # Scheduled execution moved to Cloudflare Worker (cloudflare/cron-worker / tinglumgard-crons)
+
+  # schedule:
+
+  # - cron: "0 5 * * *"
   workflow_dispatch:
 
 jobs:

@@ -1,9 +1,13 @@
 name: Egg Wishlist Proposal Cron
 
 on:
-  schedule:
-    # Run around 08:00 Europe/Oslo on Mondays (covers DST shifts).
-    - cron: "0 6,7 * * 1"
+  # Scheduled execution moved to Cloudflare Worker (cloudflare/cron-worker / tinglumgard-crons)
+
+  # schedule:
+
+  # # Run around 08:00 Europe/Oslo on Mondays (covers DST shifts).
+
+  # - cron: "0 6,7 * * 1"
   workflow_dispatch:
 
 jobs:

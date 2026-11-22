@@ -1,8 +1,11 @@
 name: Reconcile Payments Cron
 
 on:
-  schedule:
-    - cron: "*/5 * * * *"
+  # Scheduled execution moved to Cloudflare Worker (cloudflare/cron-worker / tinglumgard-crons)
+
+  # schedule:
+
+  # - cron: "*/5 * * * *"
   workflow_dispatch:
 
 jobs:

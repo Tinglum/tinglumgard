@@ -1,9 +1,13 @@
 name: Egg Waitlist Cron
 
 on:
-  schedule:
-    # GitHub Actions minimum interval is 5 minutes.
-    - cron: "*/5 * * * *"
+  # Scheduled execution moved to Cloudflare Worker (cloudflare/cron-worker / tinglumgard-crons)
+
+  # schedule:
+
+  # # GitHub Actions minimum interval is 5 minutes.
+
+  # - cron: "*/5 * * * *"
   workflow_dispatch:
 
 jobs:

@@ -1,8 +1,11 @@
 name: TodoTwo Daily Digest Cron
 
 on:
-  schedule:
-    - cron: "0 18 * * *"
+  # Scheduled execution moved to Cloudflare Worker (cloudflare/cron-worker / tinglumgard-crons)
+
+  # schedule:
+
+  # - cron: "0 18 * * *"
   workflow_dispatch:
 
 jobs:

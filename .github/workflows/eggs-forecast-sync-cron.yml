@@ -1,8 +1,11 @@
 name: Eggs Forecast Sync Cron
 
 on:
-  schedule:
-    - cron: "0 1 * * *"
+  # Scheduled execution moved to Cloudflare Worker (cloudflare/cron-worker / tinglumgard-crons)
+
+  # schedule:
+
+  # - cron: "0 1 * * *"
   workflow_dispatch:
 
 jobs:

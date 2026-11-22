@@ -1,8 +1,11 @@
 name: Email Dispatch Cron
 
 on:
-  schedule:
-    - cron: "* * * * *"
+  # Scheduled execution moved to Cloudflare Worker (cloudflare/cron-worker / tinglumgard-crons)
+
+  # schedule:
+
+  # - cron: "* * * * *"
   workflow_dispatch:
 
 jobs:

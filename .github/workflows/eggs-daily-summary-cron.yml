@@ -1,8 +1,11 @@
 name: Eggs Daily Summary Cron
 
 on:
-  schedule:
-    - cron: "15 17 * * *"
+  # Scheduled execution moved to Cloudflare Worker (cloudflare/cron-worker / tinglumgard-crons)
+
+  # schedule:
+
+  # - cron: "15 17 * * *"
   workflow_dispatch:
 
 jobs:

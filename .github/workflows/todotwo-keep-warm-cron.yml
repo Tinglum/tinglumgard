@@ -3,8 +3,11 @@ name: TodoTwo — keep functions warm
 # Lightweight keep-warm ping during active farm hours (06:00–21:00 Europe/Oslo)
 # so opening TodoTwo in the barn avoids Netlify cold starts.
 on:
-  schedule:
-    - cron: '*/10 5-20 * * *'
+  # Scheduled execution moved to Cloudflare Worker (cloudflare/cron-worker / tinglumgard-crons)
+
+  # schedule:
+
+  # - cron: '*/10 5-20 * * *'
   workflow_dispatch:
 
 jobs:

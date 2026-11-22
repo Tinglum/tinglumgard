@@ -1,8 +1,11 @@
 name: Confirmation Email Audit Cron
 
 on:
-  schedule:
-    - cron: "30 6 * * *"   # 06:30 UTC daily
+  # Scheduled execution moved to Cloudflare Worker (cloudflare/cron-worker / tinglumgard-crons)
+
+  # schedule:
+
+  # - cron: "30 6 * * *"   # 06:30 UTC daily
   workflow_dispatch:
 
 jobs:

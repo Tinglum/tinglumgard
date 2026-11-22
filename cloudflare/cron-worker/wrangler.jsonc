@@ -1,0 +1,25 @@
+{
+  "$schema": "https://developers.cloudflare.com/workers/wrangler/configuration/schema.json",
+  "name": "tinglumgard-crons",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-21",
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 0.05
+    }
+  },
+  "vars": {
+    "CRON_BASE_URL": "https://xn--tinglumgrd-85a.no"
+  },
+  "triggers": {
+    "crons": [
+      "*/5 * * * *"
+    ]
+  }
+}

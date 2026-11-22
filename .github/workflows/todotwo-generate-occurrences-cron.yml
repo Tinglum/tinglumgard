@@ -1,8 +1,11 @@
 name: TodoTwo Generate Occurrences Cron
 
 on:
-  schedule:
-    - cron: "0 4 * * *"
+  # Scheduled execution moved to Cloudflare Worker (cloudflare/cron-worker / tinglumgard-crons)
+
+  # schedule:
+
+  # - cron: "0 4 * * *"
   workflow_dispatch:
 
 jobs:
