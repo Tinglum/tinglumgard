@@ -1,8 +1,10 @@
 import type { Metadata } from 'next'
 
 import { SafeAreaStyles } from '@/components/todotwo/pwa/safe-area-styles'
+import { AppUpdateBanner } from '@/components/todotwo/pwa/app-update-banner'
 import { InstallAndNotifyPrompt } from '@/components/todotwo/pwa/install-and-notify-prompt'
 import { ServiceWorkerRegister } from '@/components/todotwo/pwa/service-worker-register'
+import { getTodoTwoBuildVersion } from '@/lib/todotwo/pwa/version'
 import { TODOTWO_MANIFEST_URL } from '@/lib/todotwo/pwa/constants'
 import { getVapidPublicKey } from '@/lib/todotwo/config'
 
@@ -63,6 +65,7 @@ export default function TodoTwoLayout({ children }: { children: React.ReactNode 
     <div className="todotwo-root">
       <SafeAreaStyles />
       <ServiceWorkerRegister />
+      <AppUpdateBanner currentVersion={getTodoTwoBuildVersion()} />
       {/* Above the login page on purpose. beforeinstallprompt fires once and
           early; a prompt that only mounts after sign-in has already missed it
           and its install button can never work. */}
