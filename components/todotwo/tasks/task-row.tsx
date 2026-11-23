@@ -46,6 +46,11 @@ const UNDO_WINDOW_MS = 8000
  * which is also why completion goes through the RPC rather than a plain update:
  * uncomplete has to be available to the same person.
  */
+export interface YesterdayResponsibleInfo {
+  name: string | null
+  completed: boolean
+}
+
 export function TaskRow({
   task,
   timeLabel,
@@ -53,6 +58,7 @@ export function TaskRow({
   onStatusChange,
   helpAction,
   hideAssignee = false,
+  yesterdayInfo = null,
 }: {
   task: TaskRowData
   timeLabel: string | null
@@ -65,6 +71,7 @@ export function TaskRow({
   onStatusChange?: (taskId: string, nextDone: boolean) => void
   helpAction?: React.ReactNode
   hideAssignee?: boolean
+  yesterdayInfo?: YesterdayResponsibleInfo | null
 }) {
   const router = useRouter()
   const [done, setDone] = React.useState(isFinished(task.status))
@@ -203,7 +210,7 @@ export function TaskRow({
           </p>
         ) : null}
 
-        {timeLabel || task.estimated_minutes ? (
+        {timeLabel || task.estimated_minutes || yesterdayInfo ? (
           <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[12px] text-[var(--tt-ink-3)]">
             {timeLabel ? (
               <span className="inline-flex items-center gap-1 rounded-md bg-[var(--tt-surface-2)] px-1.5 py-0.5 font-medium tabular-nums text-[var(--tt-ink-2)]">
@@ -214,6 +221,20 @@ export function TaskRow({
 
             {task.estimated_minutes ? (
               <span className="tabular-nums">{task.estimated_minutes} min</span>
+            ) : null}
+
+            {yesterdayInfo ? (
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11.5px] font-medium',
+                  yesterdayInfo.completed
+                    ? 'bg-[var(--tt-accent-soft)] text-[var(--tt-accent)]'
+                    : 'bg-[var(--tt-warn-soft)] text-[var(--tt-warn)]'
+                )}
+              >
+                Yesterday: {yesterdayInfo.name ?? 'Unclaimed'} ·{' '}
+                {yesterdayInfo.completed ? 'Done ✓' : 'Not completed'}
+              </span>
             ) : null}
           </div>
         ) : null}

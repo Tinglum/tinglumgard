@@ -24,7 +24,7 @@ import { cn } from '@/lib/utils'
 import { Avatar } from '@/components/todotwo/ui/avatar'
 import { Button } from '@/components/todotwo/ui/button'
 import { EmptyState, StatusPill, Surface } from '@/components/todotwo/ui/states'
-import { TaskRow } from '@/components/todotwo/tasks/task-row'
+import { TaskRow, type YesterdayResponsibleInfo } from '@/components/todotwo/tasks/task-row'
 import { AskForHelp } from '@/components/todotwo/tasks/ask-for-help'
 import { OpenHelpRequests, type OpenHelpRequest } from '@/components/todotwo/tasks/open-help-requests'
 import { ProjectForm } from '@/components/todotwo/tasks/project-form'
@@ -88,6 +88,7 @@ export function TodayWorkspace({
   initialUnclaimed,
   initialDoneToday,
   initialEveryoneToday,
+  initialEveryoneYesterday,
   initialWeeklyTasks,
   initialProjects,
   initialHelpRequests,
@@ -106,6 +107,7 @@ export function TodayWorkspace({
   initialUnclaimed: QueryTaskRow[]
   initialDoneToday: QueryTaskRow[]
   initialEveryoneToday: QueryTaskRow[]
+  initialEveryoneYesterday: QueryTaskRow[]
   initialWeeklyTasks: QueryTaskRow[]
   initialProjects: QueryTaskRow[]
   initialHelpRequests: OpenHelpRequest[]
@@ -113,6 +115,7 @@ export function TodayWorkspace({
   olderOpenCount: number
 }) {
   const [tab, setTab] = React.useState<WorkspaceTab>('my-day')
+  const [teamDay, setTeamDay] = React.useState<'today' | 'yesterday'>('today')
   const [teamFilter, setTeamFilter] = React.useState<'all' | 'active' | 'done'>('all')
   const [teamSlot, setTeamSlot] = React.useState<'all' | DaySlot>('all')
   const [showDone, setShowDone] = React.useState(false)
@@ -132,6 +135,8 @@ export function TodayWorkspace({
   const [unclaimed, setUnclaimed] = React.useState<QueryTaskRow[]>(initialUnclaimed)
   const [doneToday, setDoneToday] = React.useState<QueryTaskRow[]>(initialDoneToday)
   const [everyoneToday, setEveryoneToday] = React.useState<QueryTaskRow[]>(initialEveryoneToday)
+  const [everyoneYesterday, setEveryoneYesterday] =
+    React.useState<QueryTaskRow[]>(initialEveryoneYesterday)
   const [weeklyTasks, setWeeklyTasks] = React.useState<QueryTaskRow[]>(initialWeeklyTasks)
   const [projects, setProjects] = React.useState<QueryTaskRow[]>(initialProjects)
 
@@ -141,8 +146,23 @@ export function TodayWorkspace({
   React.useEffect(() => setUnclaimed(initialUnclaimed), [initialUnclaimed])
   React.useEffect(() => setDoneToday(initialDoneToday), [initialDoneToday])
   React.useEffect(() => setEveryoneToday(initialEveryoneToday), [initialEveryoneToday])
+  React.useEffect(() => setEveryoneYesterday(initialEveryoneYesterday), [initialEveryoneYesterday])
   React.useEffect(() => setWeeklyTasks(initialWeeklyTasks), [initialWeeklyTasks])
   React.useEffect(() => setProjects(initialProjects), [initialProjects])
+
+  // Map series_id -> who had yesterday's occurrence and whether they completed it
+  const yesterdayBySeriesId = React.useMemo(() => {
+    const map = new Map<string, YesterdayResponsibleInfo>()
+    for (const task of everyoneYesterday) {
+      if (!task.series_id) continue
+      const person = task.assignee
+      map.set(task.series_id, {
+        name: person ? person.preferredName?.trim() || person.fullName : null,
+        completed: isFinished(task.status),
+      })
+    }
+    return map
+  }, [everyoneYesterday])
 
   const dailySeries = React.useMemo(() => new Set(dailySeriesIds), [dailySeriesIds])
   const askedTaskIds = React.useMemo(
@@ -270,8 +290,30 @@ export function TodayWorkspace({
 
   const teamTotal = everyoneToday.length
   const teamDone = everyoneToday.filter((t) => isFinished(t.status)).length
+  const yesterdayTotal = everyoneYesterday.length
+  const yesterdayDone = everyoneYesterday.filter((t) => isFinished(t.status)).length
+  const yesterdayUnclaimed = everyoneYesterday.filter((t) => !t.assignee)
 
-  // Instant Barn Note acknowledge & post (#10)
+  // Group everyoneToday or everyoneYesterday by person for the Farm Team view
+  const activeTeamTasks = teamDay === 'yesterday' ? everyoneYesterday : everyoneToday
+  const teamGroups = React.useMemo(() => {
+    const map = new Map<string, { person: TaskAssignee; tasks: QueryTaskRow[] }>()
+    for (const task of activeTeamTasks) {
+      const person = task.assignee
+      if (!person) continue
+      if (teamSlot !== 'all' && slotForTask(task.due_at) !== teamSlot) continue
+      const existing = map.get(person.id)
+      if (existing) existing.tasks.push(task)
+      else map.set(person.id, { person, tasks: [task] })
+    }
+    return Array.from(map.values()).sort((a, b) => {
+      if (a.person.id === currentPerson.id) return -1
+      if (b.person.id === currentPerson.id) return 1
+      const aRem = a.tasks.filter((t) => !isFinished(t.status)).length
+      const bRem = b.tasks.filter((t) => !isFinished(t.status)).length
+      return bRem - aRem
+    })
+  }, [activeTeamTasks, currentPerson.id, teamSlot])
   async function handleAckBarnNote() {
     if (!barnNote) return
     const current = barnNote
@@ -328,26 +370,6 @@ export function TodayWorkspace({
     setComposingNote(false)
     showToast('Barn note pinned for the team')
   }
-
-  // Group everyoneToday by person for the Farm Team view (with optional time-of-day filter)
-  const teamGroups = React.useMemo(() => {
-    const map = new Map<string, { person: TaskAssignee; tasks: QueryTaskRow[] }>()
-    for (const task of everyoneToday) {
-      const person = task.assignee
-      if (!person) continue
-      if (teamSlot !== 'all' && slotForTask(task.due_at) !== teamSlot) continue
-      const existing = map.get(person.id)
-      if (existing) existing.tasks.push(task)
-      else map.set(person.id, { person, tasks: [task] })
-    }
-    return Array.from(map.values()).sort((a, b) => {
-      if (a.person.id === currentPerson.id) return -1
-      if (b.person.id === currentPerson.id) return 1
-      const aRem = a.tasks.filter((t) => !isFinished(t.status)).length
-      const bRem = b.tasks.filter((t) => !isFinished(t.status)).length
-      return bRem - aRem
-    })
-  }, [everyoneToday, currentPerson.id, teamSlot])
 
   // Group My Day chores into Morning / Afternoon / Evening / Anytime (#8)
   const mineBySlot = React.useMemo(() => {
@@ -518,12 +540,33 @@ export function TodayWorkspace({
 
           <button
             type="button"
-            onClick={() => setTab('team')}
+            onClick={() => {
+              setTeamDay('today')
+              setTab('team')
+            }}
             className="inline-flex items-center gap-1.5 rounded-full border border-[var(--tt-rule)] bg-[var(--tt-surface)] px-3 py-1 text-[12.5px] font-medium text-[var(--tt-ink-2)] shadow-[var(--tt-shadow-xs)] transition-colors hover:border-[var(--tt-accent)] hover:text-[var(--tt-ink)]"
           >
             <Users className="h-3.5 w-3.5 text-[var(--tt-accent)]" aria-hidden="true" />
-            Team: <span className="font-semibold tabular-nums text-[var(--tt-ink)]">{teamDone}/{teamTotal}</span> done
+            Today: <span className="font-semibold tabular-nums text-[var(--tt-ink)]">{teamDone}/{teamTotal}</span> done
           </button>
+
+          {yesterdayTotal > 0 ? (
+            <button
+              type="button"
+              onClick={() => {
+                setTeamDay('yesterday')
+                setTab('team')
+              }}
+              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--tt-rule)] bg-[var(--tt-surface)] px-3 py-1 text-[12.5px] font-medium text-[var(--tt-ink-2)] shadow-[var(--tt-shadow-xs)] transition-colors hover:border-[var(--tt-accent)] hover:text-[var(--tt-ink)]"
+            >
+              <Clock className="h-3.5 w-3.5 text-[var(--tt-ink-3)]" aria-hidden="true" />
+              Yesterday:{' '}
+              <span className="font-semibold tabular-nums text-[var(--tt-ink)]">
+                {yesterdayDone}/{yesterdayTotal}
+              </span>{' '}
+              done
+            </button>
+          ) : null}
 
           {unclaimed.length > 0 ? (
             <button
@@ -693,6 +736,9 @@ export function TodayWorkspace({
                             task={task}
                             timeLabel={timeLabel(task.due_at)}
                             hideAssignee
+                            yesterdayInfo={
+                              task.series_id ? (yesterdayBySeriesId.get(task.series_id) ?? null) : null
+                            }
                             onStatusChange={handleStatusChange}
                             helpAction={
                               <AskForHelp
@@ -715,6 +761,9 @@ export function TodayWorkspace({
                     task={task}
                     timeLabel={timeLabel(task.due_at)}
                     hideAssignee
+                    yesterdayInfo={
+                      task.series_id ? (yesterdayBySeriesId.get(task.series_id) ?? null) : null
+                    }
                     onStatusChange={handleStatusChange}
                     helpAction={
                       <AskForHelp taskId={task.id} alreadyAsked={askedTaskIds.has(task.id)} />
@@ -748,6 +797,7 @@ export function TodayWorkspace({
                 {unclaimed.map((task) => {
                   const at = timeLabel(task.due_at)
                   const isDaily = Boolean(task.series_id && dailySeries.has(task.series_id))
+                  const yInfo = task.series_id ? yesterdayBySeriesId.get(task.series_id) : null
                   return (
                     <li
                       key={task.id}
@@ -760,8 +810,8 @@ export function TodayWorkspace({
                         >
                           {task.title}
                         </Link>
-                        {at || task.estimated_minutes ? (
-                          <div className="mt-1 flex items-center gap-2 text-[12px] text-[var(--tt-ink-3)]">
+                        {at || task.estimated_minutes || yInfo ? (
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-[var(--tt-ink-3)]">
                             {at ? (
                               <span className="inline-flex items-center gap-1 rounded-md bg-[var(--tt-surface-2)] px-1.5 py-0.5 tabular-nums text-[var(--tt-ink-2)]">
                                 <Clock className="h-3 w-3" aria-hidden="true" />
@@ -769,6 +819,19 @@ export function TodayWorkspace({
                               </span>
                             ) : null}
                             {task.estimated_minutes ? <span>{task.estimated_minutes} min</span> : null}
+                            {yInfo ? (
+                              <span
+                                className={cn(
+                                  'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11.5px] font-medium',
+                                  yInfo.completed
+                                    ? 'bg-[var(--tt-accent-soft)] text-[var(--tt-accent)]'
+                                    : 'bg-[var(--tt-warn-soft)] text-[var(--tt-warn)]'
+                                )}
+                              >
+                                Yesterday: {yInfo.name ?? 'Unclaimed'} ·{' '}
+                                {yInfo.completed ? 'Done ✓' : 'Not completed'}
+                              </span>
+                            ) : null}
                           </div>
                         ) : null}
                       </div>
@@ -840,17 +903,62 @@ export function TodayWorkspace({
         </div>
       ) : null}
 
-      {/* TAB 2: FARM TEAM ("Who is doing what today?") */}
+      {/* TAB 2: FARM TEAM ("Who is doing what today & yesterday?") */}
       {tab === 'team' ? (
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2.5">
+            {/* Today vs Yesterday switcher */}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="inline-flex rounded-xl border border-[var(--tt-rule)] bg-[var(--tt-surface-2)]/80 p-1">
+                <button
+                  type="button"
+                  onClick={() => setTeamDay('today')}
+                  className={cn(
+                    'rounded-lg px-3 py-1 text-[13px] font-medium transition-all',
+                    teamDay === 'today'
+                      ? 'bg-[var(--tt-surface)] font-semibold text-[var(--tt-ink)] shadow-[var(--tt-shadow-xs)]'
+                      : 'text-[var(--tt-ink-2)] hover:text-[var(--tt-ink)]'
+                  )}
+                >
+                  Today ({teamDone}/{teamTotal})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTeamDay('yesterday')}
+                  className={cn(
+                    'rounded-lg px-3 py-1 text-[13px] font-medium transition-all',
+                    teamDay === 'yesterday'
+                      ? 'bg-[var(--tt-surface)] font-semibold text-[var(--tt-ink)] shadow-[var(--tt-shadow-xs)]'
+                      : 'text-[var(--tt-ink-2)] hover:text-[var(--tt-ink)]'
+                  )}
+                >
+                  Yesterday ({yesterdayDone}/{yesterdayTotal})
+                </button>
+              </div>
+
+              <Link
+                href={
+                  teamDay === 'yesterday'
+                    ? `${TODOTWO_BASE}/roster?date=${addFarmDays(today, -1)}`
+                    : todoTwoRoutes.roster()
+                }
+                className="inline-flex items-center gap-1 text-[13px] font-medium text-[var(--tt-accent)] hover:underline"
+              >
+                {teamDay === 'yesterday' ? 'Yesterday on Roster' : 'Two-day roster'}
+                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </Link>
+            </div>
+
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-1.5">
                 {(
                   [
                     { key: 'all', label: `Everyone (${teamGroups.length})` },
-                    { key: 'active', label: 'In progress' },
-                    { key: 'done', label: 'All done' },
+                    {
+                      key: 'active',
+                      label: teamDay === 'yesterday' ? 'Had uncompleted' : 'In progress',
+                    },
+                    { key: 'done', label: 'Completed all' },
                   ] as const
                 ).map((f) => (
                   <button
@@ -868,14 +976,6 @@ export function TodayWorkspace({
                   </button>
                 ))}
               </div>
-
-              <Link
-                href={todoTwoRoutes.roster()}
-                className="inline-flex items-center gap-1 text-[13px] font-medium text-[var(--tt-accent)] hover:underline"
-              >
-                Two-day roster
-                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-              </Link>
             </div>
 
             {/* Morning / Afternoon / Evening filter (#8) */}
@@ -906,7 +1006,7 @@ export function TodayWorkspace({
             </div>
           </div>
 
-          {unclaimed.length > 0 ? (
+          {teamDay === 'today' && unclaimed.length > 0 ? (
             <Surface className="flex flex-wrap items-center justify-between gap-3 border-[var(--tt-warn-rule)] bg-[var(--tt-warn-soft)]/50 px-4 py-3">
               <div className="flex items-center gap-2 text-[13.5px] font-medium text-[var(--tt-warn)]">
                 <Hand className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -918,6 +1018,36 @@ export function TodayWorkspace({
               <Button size="sm" variant="secondary" onClick={() => setTab('my-day')}>
                 View unclaimed
               </Button>
+            </Surface>
+          ) : null}
+
+          {teamDay === 'yesterday' && yesterdayUnclaimed.length > 0 ? (
+            <Surface className="border-[var(--tt-warn-rule)] bg-[var(--tt-warn-soft)]/35 p-4">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-warn)]">
+                  <Hand className="h-4 w-4" aria-hidden="true" />
+                  Unclaimed yesterday
+                </span>
+                <StatusPill tone="warn">{yesterdayUnclaimed.length}</StatusPill>
+              </div>
+              <ul className="flex flex-col gap-1.5 list-none">
+                {yesterdayUnclaimed.map((task) => {
+                  const finished = isFinished(task.status)
+                  return (
+                    <li key={task.id}>
+                      <Link
+                        href={`${TODOTWO_BASE}/tasks/${task.id}`}
+                        className="flex items-center justify-between gap-2 rounded-xl px-2 py-1.5 text-[13.5px] hover:bg-[var(--tt-surface)]"
+                      >
+                        <span className="font-medium text-[var(--tt-ink)]">{task.title}</span>
+                        <StatusPill tone={finished ? 'accent' : 'danger'}>
+                          {finished ? 'Done' : 'Not completed'}
+                        </StatusPill>
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ul>
             </Surface>
           ) : null}
 
@@ -978,6 +1108,9 @@ export function TodayWorkspace({
                       {tasks.map((task) => {
                         const finished = isFinished(task.status)
                         const at = timeLabel(task.due_at)
+                        const completedAt = task.completed_at
+                          ? formatFarm(new Date(task.completed_at), 'HH:mm')
+                          : null
                         return (
                           <li key={task.id}>
                             <Link
@@ -989,7 +1122,9 @@ export function TodayWorkspace({
                                   'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border',
                                   finished
                                     ? 'border-[var(--tt-accent)] bg-[var(--tt-accent)] text-[var(--tt-on-accent)]'
-                                    : 'border-[var(--tt-rule-strong)]'
+                                    : teamDay === 'yesterday'
+                                      ? 'border-[var(--tt-danger)] bg-[var(--tt-danger-soft)]'
+                                      : 'border-[var(--tt-rule-strong)]'
                                 )}
                               >
                                 {finished ? <Check className="h-2.5 w-2.5 stroke-[3]" /> : null}
@@ -1004,7 +1139,22 @@ export function TodayWorkspace({
                               >
                                 {task.title}
                               </span>
-                              {at ? (
+                              {teamDay === 'yesterday' ? (
+                                <span
+                                  className={cn(
+                                    'shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums',
+                                    finished
+                                      ? 'bg-[var(--tt-accent-soft)] text-[var(--tt-accent)]'
+                                      : 'bg-[var(--tt-danger-soft)] text-[var(--tt-danger)]'
+                                  )}
+                                >
+                                  {finished
+                                    ? completedAt
+                                      ? `Done ${completedAt}`
+                                      : 'Done ✓'
+                                    : 'Not done'}
+                                </span>
+                              ) : at ? (
                                 <span className="shrink-0 text-[11.5px] font-medium tabular-nums text-[var(--tt-ink-3)]">
                                   {at}
                                 </span>

@@ -184,6 +184,8 @@ export async function getToday(
   dailySeriesIds: string[]
   /** Farm roster already fetched alongside tasks — zero extra round trip. */
   farmPeople: TaskAssignee[]
+  /** Every task that was due yesterday, any status, with its responsible person. */
+  everyoneYesterday: TaskRow[]
 }> {
   const db = getTodoTwoClient()
   const floor = addFarmDays(today, -OVERDUE_WINDOW_DAYS)
@@ -192,8 +194,16 @@ export async function getToday(
   // Bounded date windows rather than one unbounded query. Fetch people_roster
   // in the first parallel wave so attachCurrentAssignees does not pay a second
   // roster round trip, and derive dailySeriesIds from recurringResult directly.
-  const [openResult, doneResult, staleResult, recurringResult, projectResult, rosterResult] =
-    await Promise.all([
+  const yesterday = addFarmDays(today, -1)
+  const [
+    openResult,
+    doneResult,
+    staleResult,
+    recurringResult,
+    projectResult,
+    rosterResult,
+    yesterdayResult,
+  ] = await Promise.all([
       db
         .from('tasks_resolved')
         .select(SELECT)
@@ -217,6 +227,12 @@ export async function getToday(
       db.from('task_series').select('id, rrule').eq('is_active', true).is('deleted_at', null),
       db.from('projects').select('id').eq('slug', 'tinglum-farm-tasks').maybeSingle(),
       db.from('people_roster').select('id, full_name, preferred_name, photo_url'),
+      // Yesterday's full picture (done, open, cancelled) for "who did what yesterday".
+      db
+        .from('tasks_resolved')
+        .select(SELECT)
+        .is('parent_task_id', null)
+        .eq('due_date', yesterday),
     ])
 
   const error =
@@ -238,18 +254,28 @@ export async function getToday(
     throw new Error(`Could not load farm projects: ${projectTasks.error.message}`)
   }
 
-  const rows = await attachCurrentAssignees(
+  const mainById = new Map(
+    [
+      ...((openResult.data ?? []) as unknown as TaskRow[]),
+      ...((doneResult.data ?? []) as unknown as TaskRow[]),
+      ...((projectTasks.data ?? []) as unknown as TaskRow[]),
+    ].map((task) => [task.id, task])
+  )
+  // Yesterday rows share objects with the main lists where they overlap, so a
+  // single assignee lookup covers both without an extra round trip.
+  const yesterdayRowsRaw = (
+    yesterdayResult.error ? [] : ((yesterdayResult.data ?? []) as unknown as TaskRow[])
+  ).map((task) => mainById.get(task.id) ?? task)
+  const yesterdayOnly = yesterdayRowsRaw.filter((task) => !mainById.has(task.id))
+
+  const hydrated = await attachCurrentAssignees(
     db,
-    Array.from(
-      new Map(
-        [
-          ...((openResult.data ?? []) as unknown as TaskRow[]),
-          ...((doneResult.data ?? []) as unknown as TaskRow[]),
-          ...((projectTasks.data ?? []) as unknown as TaskRow[]),
-        ].map((task) => [task.id, task])
-      ).values()
-    ),
+    [...Array.from(mainById.values()), ...yesterdayOnly],
     rosterResult.error ? null : ((rosterResult.data ?? []) as RosterRow[])
+  )
+  const rows = hydrated.filter((task) => mainById.has(task.id))
+  const everyoneYesterday = sortTasks(
+    yesterdayRowsRaw.filter((task) => task.status !== 'cancelled')
   )
 
   const recurringRows = (recurringResult.data ?? []) as { id: string; rrule: string }[]
@@ -299,6 +325,7 @@ export async function getToday(
     olderOpenCount: staleResult.count ?? 0,
     dailySeriesIds,
     farmPeople,
+    everyoneYesterday,
   }
 }
 

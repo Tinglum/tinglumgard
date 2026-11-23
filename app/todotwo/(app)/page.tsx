@@ -23,6 +23,7 @@ export default async function TodayPage() {
       unclaimed,
       doneToday,
       everyoneToday,
+      everyoneYesterday,
       olderOpenCount,
       weeklyTasks,
       projects,
@@ -73,6 +74,7 @@ export default async function TodayPage() {
       initialUnclaimed={unclaimed}
       initialDoneToday={doneToday}
       initialEveryoneToday={everyoneToday}
+      initialEveryoneYesterday={everyoneYesterday}
       initialWeeklyTasks={weeklyTasks}
       initialProjects={projects}
       initialHelpRequests={helpRequests}
