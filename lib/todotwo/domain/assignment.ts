@@ -224,20 +224,28 @@ export function buildAssignmentPlan(
   const unassignable: Unassignable[] = []
   const usedConstraints = new Set<Constraint>()
 
-  const ordered = [...tasks].sort(
-    (a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title)
-  )
-
-  // Work is handed out in bundles, not single tasks. A bundle is normally one
-  // task; a same_person rule makes it every task on that day matching the
-  // bundled labels, so "whoever does the goats does the rabbits" and "morning
-  // and evening are the same person" are the same mechanism.
   const bundles = constraints.filter(
     (c): c is Extract<Constraint, { kind: 'same_person' }> => c.kind === 'same_person'
   )
   const separations = constraints.filter(
     (c): c is Extract<Constraint, { kind: 'different_people' }> => c.kind === 'different_people'
   )
+
+  const isConstrainedTask = (task: AssignableTask): boolean =>
+    bundles.some((b) => matchesAny(task, b.labels)) ||
+    separations.some((s) => matchesAny(task, s.labelsA) || matchesAny(task, s.labelsB))
+
+  // Within each day, place bundled and separation-constrained duties (meals,
+  // livestock rounds, kitchen) before unconstrained general tasks so "General"
+  // cannot consume a person's daily slot before Goats or Dinner is placed.
+  const ordered = [...tasks].sort((a, b) => {
+    const dateDiff = a.date.localeCompare(b.date)
+    if (dateDiff !== 0) return dateDiff
+    const aConstrained = isConstrainedTask(a) ? 0 : 1
+    const bConstrained = isConstrainedTask(b) ? 0 : 1
+    if (aConstrained !== bConstrained) return aConstrained - bConstrained
+    return a.title.localeCompare(b.title)
+  })
 
   /**
    * What this unit rotates against. Bundled work rotates as a bundle — the
@@ -328,8 +336,39 @@ export function buildAssignmentPlan(
     teamOwnersByDate.set(item.date, owners)
   }
 
+  // Chronologically sorted held items so that as the solver advances to day D,
+  // any work already held on days < D is recorded in rotation history before D
+  // is planned.
+  const pendingHeldForHistory = [...held].sort((a, b) => a.date.localeCompare(b.date))
+  let heldHistoryCursor = 0
+
+  function recordHeldHistoryUpTo(beforeDate: string) {
+    while (
+      heldHistoryCursor < pendingHeldForHistory.length &&
+      pendingHeldForHistory[heldHistoryCursor].date < beforeDate
+    ) {
+      const item = pendingHeldForHistory[heldHistoryCursor]
+      heldHistoryCursor += 1
+      const pseudoTask: AssignableTask = {
+        id: '',
+        date: item.date,
+        weekday: 'MO',
+        title: item.title,
+        groupLabel: item.groupLabel,
+      }
+      const key = rotationKeyFor(pseudoTask)
+      const labelKey = item.groupLabel ?? item.title
+      for (const k of Array.from(new Set([key, labelKey]))) {
+        if (!k) continue
+        const cur = history[k] ?? []
+        history[k] = [item.personId, ...cur.filter((id) => id !== item.personId)]
+      }
+    }
+  }
+
   for (const [, group] of Array.from(units)) {
     const date = group[0].date
+    recordHeldHistoryUpTo(date)
     const eligible: AssignablePerson[] = []
     const eligibleWithoutSeparation: AssignablePerson[] = []
     const rejected: Blocker[] = []
@@ -432,8 +471,16 @@ export function buildAssignmentPlan(
     // Rotation only decides WHO IS DUE. Among those who are, load still
     // chooses, so a turn does not land on somebody already carrying twice
     // what anybody else is.
+    // Filter recent turns down to people who are actually eligible for this
+    // task right now. Otherwise, if yesterday's Dinner cook got Breakfast or a
+    // day off today (already excluded from eligible), an unfiltered slice of
+    // length (eligible.length - 1) wastes its slots on people who aren't in
+    // eligible anyway and lets the person who cooked Dinner 1-2 days ago get
+    // Dinner again.
+    const eligibleIds = new Set(eligible.map((p) => p.id))
+    const recentEligible = recent.filter((id) => eligibleIds.has(id))
     const cycle = Math.max(0, eligible.length - 1)
-    const hadRecentTurn = new Set(recent.slice(0, cycle))
+    const hadRecentTurn = new Set(recentEligible.slice(0, cycle))
     const due = eligible.filter((p) => !hadRecentTurn.has(p.id))
     // The rest of a bundle somebody already holds part of goes to them, if the
     // rules allow it. Rotation and load do not get a say: they decide who

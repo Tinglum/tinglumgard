@@ -5,7 +5,7 @@ import { isTodoTwoEnabled } from '@/lib/todotwo/config'
 import { getTodoTwoClient } from '@/lib/todotwo/db'
 import { requireApiRole } from '@/lib/todotwo/auth'
 import { getDaysOffSchedule } from '@/lib/todotwo/queries'
-import { farmDaysBetween } from '@/lib/todotwo/time'
+import { addFarmDays, farmDaysBetween } from '@/lib/todotwo/time'
 import {
   AssignmentAiUnavailableError,
   parseConstraints,
@@ -29,6 +29,8 @@ import {
   buildAssignmentPlan,
   fairnessSpread,
   type AssignableTask,
+  type HeldWork,
+  type RotationHistory,
   type Weekday,
 } from '@/lib/todotwo/domain/assignment'
 
@@ -201,6 +203,8 @@ export async function POST(request: NextRequest) {
     { data: stayRows },
     { data: skillRows },
     { data: skillNameRows },
+    { data: historyRows },
+    { data: heldRows },
   ] = await Promise.all([
     db.from('projects').select('id, name'),
     db.from('task_series').select('id, title'),
@@ -218,6 +222,25 @@ export async function POST(request: NextRequest) {
       .lte('arrival_date', parsed.to),
     db.from('person_skills').select('person_id, skill_id, authorized_unsupervised'),
     db.from('skills').select('id, name'),
+    db
+      .from('tasks')
+      .select('id, title, series_id, due_date, task_assignments(person_id, unassigned_at)')
+      .is('parent_task_id', null)
+      .is('deleted_at', null)
+      .neq('status', 'cancelled')
+      .gte('due_date', addFarmDays(parsed.from, -60))
+      .lt('due_date', parsed.from)
+      .order('due_date', { ascending: false }),
+    db
+      .from('task_assignments')
+      .select('person_id, tasks!inner(due_date, title, status, deleted_at, parent_task_id, series_id)')
+      .is('unassigned_at', null)
+      .eq('role', 'assignee')
+      .gte('tasks.due_date', parsed.from)
+      .lte('tasks.due_date', parsed.to)
+      .is('tasks.deleted_at', null)
+      .is('tasks.parent_task_id', null)
+      .neq('tasks.status', 'cancelled'),
   ])
 
   const projectName = new Map(((projectRows ?? []) as { id: string; name: string }[]).map((p) => [p.id, p.name]))
@@ -372,7 +395,32 @@ export async function POST(request: NextRequest) {
   const constraints = [...farmOnly, ...presetResult.constraints, ...aiResult.constraints]
   const unresolved = [...presetResult.unresolved, ...aiResult.unresolved]
 
-  const plan = buildAssignmentPlan(assignableTasks, people, constraints)
+  const history: RotationHistory = {}
+  for (const row of (historyRows ?? []) as {
+    title: string | null
+    series_id: string | null
+    task_assignments: { person_id: string; unassigned_at: string | null }[] | null
+  }[]) {
+    const key = (row.series_id ? seriesTitle.get(row.series_id) : null) ?? row.title
+    if (!key) continue
+    for (const a of row.task_assignments ?? []) {
+      if (a.unassigned_at !== null) continue
+      const seq = history[key] ?? []
+      if (!seq.includes(a.person_id)) history[key] = [...seq, a.person_id]
+    }
+  }
+
+  const heldWork: HeldWork[] = ((heldRows ?? []) as unknown as {
+    person_id: string
+    tasks: { due_date: string; title: string | null; series_id: string | null }
+  }[]).map((row) => ({
+    personId: row.person_id,
+    date: row.tasks.due_date,
+    title: row.tasks.title ?? (row.tasks.series_id ? seriesTitle.get(row.tasks.series_id) ?? '' : ''),
+    groupLabel: row.tasks.series_id ? seriesTitle.get(row.tasks.series_id) ?? null : null,
+  }))
+
+  const plan = buildAssignmentPlan(assignableTasks, people, constraints, history, heldWork)
 
   return NextResponse.json({
     ok: true,

@@ -365,3 +365,49 @@ describe('a bundle somebody already holds part of', () => {
     expect(plan.assignments.map((a) => a.personId)).toEqual(['aleksandra'])
   })
 })
+
+describe('rotation when earlier daily rules narrow eligible people', () => {
+  it('never repeats recent Dinner or General assignees when yesterday cook is on Breakfast today', () => {
+    const day = { date: '2026-11-28', weekday: 'SA' as const }
+    const crew = [
+      { id: 'anna', name: 'Anna' },
+      { id: 'ben', name: 'Ben' },
+      { id: 'claire', name: 'Claire' },
+      { id: 'david', name: 'David' },
+    ]
+    // Yesterday Ben cooked Dinner; 2 days ago Anna cooked Dinner; 3 days ago Claire; 4 days ago David.
+    // Even if Ben and Claire are already busy on Breakfast and Animals today (leaving only Anna and David
+    // eligible for Dinner), Anna must NOT get Dinner again 2 days after cooking while David cooked 4 days ago.
+    const plan = buildAssignmentPlan(
+      [{ id: 'dinner-1', title: 'Dinner', groupLabel: 'Dinner', ...day }],
+      crew,
+      [
+        { kind: 'different_people', labelsA: ['Breakfast'], labelsB: ['Dinner'] },
+        { kind: 'different_people', labelsA: ['Goats'], labelsB: ['Dinner'] },
+      ],
+      { Dinner: ['ben', 'anna', 'claire', 'david'] },
+      [
+        { personId: 'ben', date: day.date, title: 'Breakfast', groupLabel: 'Breakfast' },
+        { personId: 'claire', date: day.date, title: 'Goats (Morning)', groupLabel: 'Goats' },
+      ]
+    )
+    expect(plan.assignments[0].personId).toBe('david')
+  })
+
+  it('folds held work on earlier days in the window into rotation history for later days', () => {
+    const crew = [
+      { id: 'anna', name: 'Anna' },
+      { id: 'ben', name: 'Ben' },
+    ]
+    // Anna already holds General on Monday (via heldWork); Tuesday's General is unassigned.
+    // Even with empty initial history, Tuesday's General must go to Ben, not Anna twice in a row.
+    const plan = buildAssignmentPlan(
+      [{ id: 'gen-tue', title: 'General', groupLabel: 'General', date: '2026-11-24', weekday: 'TU' }],
+      crew,
+      [],
+      {},
+      [{ personId: 'anna', date: '2026-11-23', title: 'General', groupLabel: 'General' }]
+    )
+    expect(plan.assignments[0].personId).toBe('ben')
+  })
+})

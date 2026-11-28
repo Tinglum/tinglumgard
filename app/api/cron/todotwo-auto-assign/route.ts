@@ -70,20 +70,22 @@ const ROTATION_LOOKBACK_DAYS = 60
  */
 async function loadRotationHistory(
   db: ReturnType<typeof getPrivilegedClientForCronOnly>,
-  today: string,
-  through: string,
+  from: string,
   seriesTitle: Map<string, string>
 ): Promise<RotationHistory> {
-  const since = addFarmDays(today, -ROTATION_LOOKBACK_DAYS)
+  const since = addFarmDays(from, -ROTATION_LOOKBACK_DAYS)
 
   const { data } = await db
     .from('tasks')
     .select('id, title, series_id, due_date, task_assignments(person_id, unassigned_at)')
+    .is('parent_task_id', null)
+    .is('deleted_at', null)
+    .neq('status', 'cancelled')
     .gte('due_date', since)
-    // Include assignments already committed inside the planning window. The
-    // cron normally fills one new day at the far edge; ignoring Wednesday
-    // while choosing Friday made the same person look available again.
-    .lte('due_date', through)
+    // Strictly before `from`: assignments already held inside [from..to] are
+    // passed via `heldWork` and folded into history day-by-day in date order,
+    // so a future assignment on day+3 never sits ahead of yesterday's cook.
+    .lt('due_date', from)
     .order('due_date', { ascending: false })
 
   const history: RotationHistory = {}
@@ -491,7 +493,7 @@ export async function POST(request: NextRequest) {
   // Who has done each job lately. Without this every run starts blank, and a
   // window containing one new day has every load at zero — so the alphabetical
   // tie-break decides and the same person cooks dinner indefinitely.
-  const history = await loadRotationHistory(db, from, to, seriesTitle)
+  const history = await loadRotationHistory(db, from, seriesTitle)
   const teammateHistory = await loadTeammateHistory(db, from, to, seriesTitle, bundleRules)
 
 
